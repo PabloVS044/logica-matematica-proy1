@@ -1,0 +1,68 @@
+{
+  "title": "Interpretaciones: letras",
+  "description": "Presentación de Interpretaciones. 𝒟 = {a, b, c}, iᴵ = a, Rᴵ = {b, c}, Qᴵ = {(a,a), (a,b), (a,c), (b,c), (c,c)}. Pruebe también ∃y Q(i, y), ¬R(i) y ∀x ∃y Q(x, y).",
+  "project": {
+    "version": 1,
+    "language": {
+      "constants": [
+        "i"
+      ],
+      "functions": [],
+      "predicates": [
+        {
+          "name": "R",
+          "arity": 1
+        },
+        {
+          "name": "Q",
+          "arity": 2
+        }
+      ]
+    },
+    "interpretation": {
+      "domain": [
+        "a",
+        "b",
+        "c"
+      ],
+      "constants": {
+        "i": "a"
+      },
+      "functions": {},
+      "predicates": {
+        "R": [
+          [
+            "b"
+          ],
+          [
+            "c"
+          ]
+        ],
+        "Q": [
+          [
+            "a",
+            "a"
+          ],
+          [
+            "a",
+            "b"
+          ],
+          [
+            "a",
+            "c"
+          ],
+          [
+            "b",
+            "c"
+          ],
+          [
+            "c",
+            "c"
+          ]
+        ]
+      }
+    },
+    "formula": "∀x ∀y ∀z (Q(x, y) ∧ Q(x, z) → y = z)",
+    "environment": {}
+  }
+}

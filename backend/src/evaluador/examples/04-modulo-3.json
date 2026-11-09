@@ -1,0 +1,155 @@
+{
+  "title": "Aritmética módulo 3",
+  "description": "Sucesor s y suma plus en ℤ₃, con la constante zero y los predicados Even (pares) y L (menor que). Pruebe ∀x s(s(s(x))) = x o ∃x ∀y L(x, y).",
+  "project": {
+    "version": 1,
+    "language": {
+      "constants": [
+        "zero"
+      ],
+      "functions": [
+        {
+          "name": "s",
+          "arity": 1
+        },
+        {
+          "name": "plus",
+          "arity": 2
+        }
+      ],
+      "predicates": [
+        {
+          "name": "Even",
+          "arity": 1
+        },
+        {
+          "name": "L",
+          "arity": 2
+        }
+      ]
+    },
+    "interpretation": {
+      "domain": [
+        "0",
+        "1",
+        "2"
+      ],
+      "constants": {
+        "zero": "0"
+      },
+      "functions": {
+        "s": [
+          {
+            "args": [
+              "0"
+            ],
+            "value": "1"
+          },
+          {
+            "args": [
+              "1"
+            ],
+            "value": "2"
+          },
+          {
+            "args": [
+              "2"
+            ],
+            "value": "0"
+          }
+        ],
+        "plus": [
+          {
+            "args": [
+              "0",
+              "0"
+            ],
+            "value": "0"
+          },
+          {
+            "args": [
+              "0",
+              "1"
+            ],
+            "value": "1"
+          },
+          {
+            "args": [
+              "0",
+              "2"
+            ],
+            "value": "2"
+          },
+          {
+            "args": [
+              "1",
+              "0"
+            ],
+            "value": "1"
+          },
+          {
+            "args": [
+              "1",
+              "1"
+            ],
+            "value": "2"
+          },
+          {
+            "args": [
+              "1",
+              "2"
+            ],
+            "value": "0"
+          },
+          {
+            "args": [
+              "2",
+              "0"
+            ],
+            "value": "2"
+          },
+          {
+            "args": [
+              "2",
+              "1"
+            ],
+            "value": "0"
+          },
+          {
+            "args": [
+              "2",
+              "2"
+            ],
+            "value": "1"
+          }
+        ]
+      },
+      "predicates": {
+        "Even": [
+          [
+            "0"
+          ],
+          [
+            "2"
+          ]
+        ],
+        "L": [
+          [
+            "0",
+            "1"
+          ],
+          [
+            "0",
+            "2"
+          ],
+          [
+            "1",
+            "2"
+          ]
+        ]
+      }
+    },
+    "formula": "∀x ∃y plus(x, y) = zero",
+    "environment": {}
+  }
+}
