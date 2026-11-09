@@ -1,0 +1,47 @@
+{
+  "title": "Entornos: orden en {0, 1, 2}",
+  "description": "Presentación de Entornos. 𝒟 = {0, 1, 2}, Pᴵ = {(0,1), (0,2), (1,2)}. Fórmula abierta: cambie el entorno (x ↦ 2, y ↦ 1) o pruebe el enunciado ∃x ∀y P(x, y).",
+  "project": {
+    "version": 1,
+    "language": {
+      "constants": [],
+      "functions": [],
+      "predicates": [
+        {
+          "name": "P",
+          "arity": 2
+        }
+      ]
+    },
+    "interpretation": {
+      "domain": [
+        "0",
+        "1",
+        "2"
+      ],
+      "constants": {},
+      "functions": {},
+      "predicates": {
+        "P": [
+          [
+            "0",
+            "1"
+          ],
+          [
+            "0",
+            "2"
+          ],
+          [
+            "1",
+            "2"
+          ]
+        ]
+      }
+    },
+    "formula": "P(x, y)",
+    "environment": {
+      "x": "0",
+      "y": "2"
+    }
+  }
+}
