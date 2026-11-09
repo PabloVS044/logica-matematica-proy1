@@ -1,0 +1,1019 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Evaluador semántico",
+    "description": "Evalúa fórmulas de primer orden en interpretaciones finitas.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/language/validate": {
+      "post": {
+        "summary": "Validate Language",
+        "operationId": "validate_language_api_language_validate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LanguageIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiagnosticsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/formula/analyze": {
+      "post": {
+        "summary": "Analyze",
+        "operationId": "analyze_api_formula_analyze_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FormulaIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormulaAnalysisOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/interpretation/validate": {
+      "post": {
+        "summary": "Validate Interpretation",
+        "operationId": "validate_interpretation_api_interpretation_validate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InterpretationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiagnosticsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/evaluate": {
+      "post": {
+        "summary": "Evaluate Project",
+        "operationId": "evaluate_project_api_evaluate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/examples": {
+      "get": {
+        "summary": "List Examples",
+        "operationId": "list_examples_api_examples_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExampleOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Examples Api Examples Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/examples/{example_id}": {
+      "get": {
+        "summary": "Get Example",
+        "operationId": "get_example_api_examples__example_id__get",
+        "parameters": [
+          {
+            "name": "example_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Example Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExampleOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BindingOut": {
+        "properties": {
+          "var": {
+            "type": "string",
+            "title": "Var"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "var",
+          "value"
+        ],
+        "title": "BindingOut"
+      },
+      "DiagnosticOut": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "error",
+              "warning"
+            ],
+            "title": "Severity"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "severity",
+          "message",
+          "location"
+        ],
+        "title": "DiagnosticOut"
+      },
+      "DiagnosticsOut": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/DiagnosticOut"
+            },
+            "type": "array",
+            "title": "Diagnostics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok",
+          "diagnostics"
+        ],
+        "title": "DiagnosticsOut"
+      },
+      "EvaluationOut": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/DiagnosticOut"
+            },
+            "type": "array",
+            "title": "Diagnostics"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExplainNodeOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated",
+            "default": false
+          },
+          "node_count": {
+            "type": "integer",
+            "title": "Node Count",
+            "default": 0
+          },
+          "free_vars": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Free Vars"
+          },
+          "parenthesized": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parenthesized"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok",
+          "diagnostics",
+          "value",
+          "summary",
+          "explanation",
+          "truncated",
+          "node_count",
+          "free_vars",
+          "parenthesized"
+        ],
+        "title": "EvaluationOut",
+        "description": "Si `ok` es falso, `value`, `summary` y `explanation` vienen vacíos."
+      },
+      "ExampleOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "project": {
+            "$ref": "#/components/schemas/ProjectIn"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "project"
+        ],
+        "title": "ExampleOut"
+      },
+      "ExplainNodeOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "formula": {
+            "type": "string",
+            "title": "Formula"
+          },
+          "start": {
+            "type": "integer",
+            "title": "Start"
+          },
+          "end": {
+            "type": "integer",
+            "title": "End"
+          },
+          "env_label": {
+            "type": "string",
+            "title": "Env Label"
+          },
+          "env": {
+            "items": {
+              "$ref": "#/components/schemas/BindingOut"
+            },
+            "type": "array",
+            "title": "Env"
+          },
+          "value": {
+            "type": "boolean",
+            "title": "Value"
+          },
+          "rule": {
+            "type": "string",
+            "enum": [
+              "predicado",
+              "igualdad",
+              "negación",
+              "conjunción",
+              "disyunción",
+              "implicación",
+              "universal",
+              "existencial"
+            ],
+            "title": "Rule"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "decisive": {
+            "type": "boolean",
+            "title": "Decisive"
+          },
+          "justification": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "testigo",
+                  "contraejemplo",
+                  "comprobación completa"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Justification"
+          },
+          "binding": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BindingOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "computations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Computations"
+          },
+          "pruned": {
+            "type": "boolean",
+            "title": "Pruned",
+            "default": false
+          },
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/ExplainNodeOut"
+            },
+            "type": "array",
+            "title": "Children"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "formula",
+          "start",
+          "end",
+          "env_label",
+          "env",
+          "value",
+          "rule",
+          "reason",
+          "decisive",
+          "justification",
+          "binding",
+          "computations",
+          "pruned",
+          "children"
+        ],
+        "title": "ExplainNodeOut"
+      },
+      "FormulaAnalysisOut": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/DiagnosticOut"
+            },
+            "type": "array",
+            "title": "Diagnostics"
+          },
+          "parenthesized": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parenthesized"
+          },
+          "free_vars": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Free Vars"
+          },
+          "occurrences": {
+            "items": {
+              "$ref": "#/components/schemas/OccurrenceOut"
+            },
+            "type": "array",
+            "title": "Occurrences"
+          },
+          "syntax_tree": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SyntaxNodeOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok",
+          "diagnostics",
+          "parenthesized",
+          "free_vars",
+          "occurrences",
+          "syntax_tree"
+        ],
+        "title": "FormulaAnalysisOut"
+      },
+      "FormulaIn": {
+        "properties": {
+          "language": {
+            "$ref": "#/components/schemas/LanguageIn"
+          },
+          "formula": {
+            "type": "string",
+            "title": "Formula"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "formula"
+        ],
+        "title": "FormulaIn"
+      },
+      "FunctionRowIn": {
+        "properties": {
+          "args": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Args"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "args",
+          "value"
+        ],
+        "title": "FunctionRowIn"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "version"
+        ],
+        "title": "HealthOut"
+      },
+      "InterpretationIn": {
+        "properties": {
+          "domain": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Domain"
+          },
+          "constants": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Constants"
+          },
+          "functions": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/FunctionRowIn"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Functions"
+          },
+          "predicates": {
+            "additionalProperties": {
+              "items": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Predicates"
+          }
+        },
+        "type": "object",
+        "title": "InterpretationIn"
+      },
+      "InterpretationRequest": {
+        "properties": {
+          "language": {
+            "$ref": "#/components/schemas/LanguageIn"
+          },
+          "interpretation": {
+            "$ref": "#/components/schemas/InterpretationIn"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "interpretation"
+        ],
+        "title": "InterpretationRequest"
+      },
+      "LanguageIn": {
+        "properties": {
+          "constants": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Constants"
+          },
+          "functions": {
+            "items": {
+              "$ref": "#/components/schemas/SymbolDeclIn"
+            },
+            "type": "array",
+            "title": "Functions"
+          },
+          "predicates": {
+            "items": {
+              "$ref": "#/components/schemas/SymbolDeclIn"
+            },
+            "type": "array",
+            "title": "Predicates"
+          }
+        },
+        "type": "object",
+        "title": "LanguageIn"
+      },
+      "LocationOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End"
+          },
+          "path": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Path"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "start",
+          "end",
+          "path"
+        ],
+        "title": "LocationOut"
+      },
+      "OccurrenceOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "start": {
+            "type": "integer",
+            "title": "Start"
+          },
+          "end": {
+            "type": "integer",
+            "title": "End"
+          },
+          "free": {
+            "type": "boolean",
+            "title": "Free"
+          },
+          "binder_start": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Binder Start"
+          },
+          "binder_end": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Binder End"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "start",
+          "end",
+          "free",
+          "binder_start",
+          "binder_end"
+        ],
+        "title": "OccurrenceOut"
+      },
+      "ProjectIn": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "default": 1
+          },
+          "language": {
+            "$ref": "#/components/schemas/LanguageIn"
+          },
+          "interpretation": {
+            "$ref": "#/components/schemas/InterpretationIn"
+          },
+          "formula": {
+            "type": "string",
+            "title": "Formula",
+            "default": ""
+          },
+          "environment": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Environment"
+          }
+        },
+        "type": "object",
+        "title": "ProjectIn",
+        "description": "Proyecto completo: también es el formato para guardar y cargar."
+      },
+      "SymbolDeclIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "arity": {
+            "type": "integer",
+            "title": "Arity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "arity"
+        ],
+        "title": "SymbolDeclIn"
+      },
+      "SyntaxNodeOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "var",
+              "const",
+              "func",
+              "eq",
+              "pred",
+              "not",
+              "and",
+              "or",
+              "implies",
+              "forall",
+              "exists"
+            ],
+            "title": "Kind"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "start": {
+            "type": "integer",
+            "title": "Start"
+          },
+          "end": {
+            "type": "integer",
+            "title": "End"
+          },
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/SyntaxNodeOut"
+            },
+            "type": "array",
+            "title": "Children"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "label",
+          "text",
+          "start",
+          "end",
+          "children"
+        ],
+        "title": "SyntaxNodeOut",
+        "description": "Nodo del árbol sintáctico (fórmulas y términos), como en las presentaciones."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

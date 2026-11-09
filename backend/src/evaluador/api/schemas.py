@@ -6,7 +6,7 @@ para que los mensajes de error sean los del evaluador, en español.
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 # ------------------------------------------------------------------ entrada
 
@@ -57,26 +57,32 @@ class ProjectIn(BaseModel):
 # ------------------------------------------------------------------ salida
 
 
-class LocationOut(BaseModel):
+class OutModel(BaseModel):
+    """Respuestas: los campos con valor por defecto siempre se envían."""
+
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
+
+
+class LocationOut(OutModel):
     kind: str
     start: int | None = None
     end: int | None = None
     path: list[str | int] = Field(default_factory=list)
 
 
-class DiagnosticOut(BaseModel):
+class DiagnosticOut(OutModel):
     code: str
     severity: Literal["error", "warning"]
     message: str
     location: LocationOut
 
 
-class DiagnosticsOut(BaseModel):
+class DiagnosticsOut(OutModel):
     ok: bool
     diagnostics: list[DiagnosticOut]
 
 
-class OccurrenceOut(BaseModel):
+class OccurrenceOut(OutModel):
     name: str
     start: int
     end: int
@@ -90,7 +96,7 @@ SyntaxKind = Literal[
 ]
 
 
-class SyntaxNodeOut(BaseModel):
+class SyntaxNodeOut(OutModel):
     """Nodo del árbol sintáctico (fórmulas y términos), como en las presentaciones."""
 
     id: str
@@ -102,7 +108,7 @@ class SyntaxNodeOut(BaseModel):
     children: list["SyntaxNodeOut"] = Field(default_factory=list)
 
 
-class FormulaAnalysisOut(BaseModel):
+class FormulaAnalysisOut(OutModel):
     ok: bool
     diagnostics: list[DiagnosticOut]
     parenthesized: str | None = None
@@ -111,7 +117,7 @@ class FormulaAnalysisOut(BaseModel):
     syntax_tree: SyntaxNodeOut | None = None
 
 
-class BindingOut(BaseModel):
+class BindingOut(OutModel):
     var: str
     value: str
 
@@ -129,7 +135,7 @@ Rule = Literal[
 JustificationOut = Literal["testigo", "contraejemplo", "comprobación completa"]
 
 
-class ExplainNodeOut(BaseModel):
+class ExplainNodeOut(OutModel):
     id: str
     formula: str
     start: int
@@ -147,7 +153,7 @@ class ExplainNodeOut(BaseModel):
     children: list["ExplainNodeOut"] = Field(default_factory=list)
 
 
-class EvaluationOut(BaseModel):
+class EvaluationOut(OutModel):
     """Si `ok` es falso, `value`, `summary` y `explanation` vienen vacíos."""
 
     ok: bool
@@ -161,13 +167,13 @@ class EvaluationOut(BaseModel):
     parenthesized: str | None = None
 
 
-class ExampleOut(BaseModel):
+class ExampleOut(OutModel):
     id: str
     title: str
     description: str
     project: ProjectIn
 
 
-class HealthOut(BaseModel):
+class HealthOut(OutModel):
     status: str
     version: str
