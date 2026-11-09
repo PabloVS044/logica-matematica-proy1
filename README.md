@@ -37,6 +37,21 @@ pnpm install
 pnpm dev                                   # http://localhost:5173 (redirige /api al backend)
 ```
 
+## Uso
+
+1. **Lenguaje**: declara constantes, símbolos funcionales y predicados con su aridad.
+2. **Interpretación ℐ**: escribe los elementos del dominio 𝒟 y define cada símbolo: el valor de
+   cada constante, la tabla completa de cada función y las tuplas de cada relación (casillas para
+   predicados unarios, matriz para binarios, lista para aridad mayor).
+3. **Fórmula**: usa la barra de símbolos o el teclado (`->` →, `&` ∧, `|` ∨, `~` ¬, `\A` ∀,
+   `\E` ∃). Los errores se subrayan mientras escribes y se muestra cómo se interpretó la fórmula.
+4. **Entorno**: si la fórmula tiene variables libres, asigna un elemento de 𝒟 a cada una.
+5. **Evaluar** (o Ctrl + Enter): muestra Verdadero o Falso en la notación del curso y la
+   justificación con testigos, contraejemplos o comprobación completa.
+
+El proyecto se guarda automáticamente en el navegador. Con **Descargar** y **Cargar** se
+comparte como JSON, y **Ejemplos del curso** carga los ejemplos de las presentaciones.
+
 ## API
 
 Documentación interactiva en `http://localhost:8000/docs` con el backend en marcha.
@@ -72,6 +87,18 @@ Formato de proyecto (el mismo que reciben `/api/evaluate` y los ejemplos):
   "environment": {}
 }
 ```
+
+### Tipos de la API en el frontend
+
+Los tipos de TypeScript se generan desde el esquema OpenAPI del backend. Después de cambiar
+`backend/src/evaluador/api/schemas.py`:
+
+```bash
+cd backend && python -m evaluador.api.openapi_export > ../frontend/src/api/openapi.json
+cd ../frontend && pnpm gen:api
+```
+
+Una prueba del backend falla si el esquema del frontend quedó desactualizado.
 
 ## Pruebas y calidad
 
