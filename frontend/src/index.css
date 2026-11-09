@@ -1,1 +1,98 @@
 @import 'tailwindcss';
+@import '@fontsource/atkinson-hyperlegible/400.css';
+@import '@fontsource/atkinson-hyperlegible/700.css';
+@import '@fontsource/stix-two-text/400.css';
+@import '@fontsource/stix-two-text/600.css';
+
+/* Noto Sans Math trae todos los símbolos lógicos (∀ ⊨ 𝒟 ⟦ ⟧ ↦ …), pero el CSS de
+   fontsource lo limita al rango latino. Se declara aquí sin esa restricción. */
+@font-face {
+  font-family: 'Logic Symbols';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('@fontsource/noto-sans-math/files/noto-sans-math-latin-400-normal.woff2') format('woff2');
+  unicode-range: U+00AC, U+2000-2BFF, U+1D400-1D7FF;
+}
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+:root {
+  --paper: #f5f7fb;
+  --surface: #ffffff;
+  --sunken: #eef1f8;
+  --ink: #1b2033;
+  --muted: #5b6380;
+  --line: #d6dbe7;
+  --accent: #26348c;
+  --accent-soft: #e4e7f6;
+  --true: #0e7a5c;
+  --true-soft: #dcf1ea;
+  --false: #b0243c;
+  --false-soft: #f8e1e5;
+  --warn: #8a5a00;
+  --warn-soft: #fbf0d9;
+  color-scheme: light;
+}
+
+[data-theme='dark'] {
+  --paper: #171b29;
+  --surface: #1e2334;
+  --sunken: #262c40;
+  --ink: #e6e9f3;
+  --muted: #a1a8c3;
+  --line: #343b55;
+  --accent: #9aa6ff;
+  --accent-soft: #2c3460;
+  --true: #4fd1a5;
+  --true-soft: #183a33;
+  --false: #ff7f93;
+  --false-soft: #45212b;
+  --warn: #f2c063;
+  --warn-soft: #3d3220;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-true: var(--true);
+  --color-true-soft: var(--true-soft);
+  --color-false: var(--false);
+  --color-false-soft: var(--false-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --font-sans: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  --font-formula: 'STIX Two Text', 'Logic Symbols', 'Cambria Math', serif;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.formula {
+  font-family: var(--font-formula);
+  font-feature-settings: 'lnum';
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
