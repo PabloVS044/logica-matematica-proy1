@@ -1,4 +1,4 @@
-from evaluador.core.evaluation import evaluate
+from evaluador.core.evaluation import evaluate, validate
 from evaluador.core.interpretation import FunctionRow, RawInterpretation
 from evaluador.core.language import SymbolDecl
 
@@ -71,3 +71,17 @@ def test_warnings_do_not_block() -> None:
     assert result.ok
     assert result.value is True
     assert [d.code for d in result.diagnostics] == ["W-QNT-001", "W-ENV-001"]
+
+
+def test_validate_without_evaluating() -> None:
+    params: dict[str, object] = {
+        "constants": ["c"],
+        "functions": [SymbolDecl("f", 1)],
+        "predicates": [SymbolDecl("P", 1)],
+        "interpretation": INTERP,
+        "environment": {"x": "b"},
+    }
+    valid = validate(formula="P(f(x))", **params).valid  # type: ignore[arg-type]
+    assert valid is not None
+    assert valid.environment("x") == "b"
+    assert validate(formula="P(f(x)", **params).valid is None  # type: ignore[arg-type]
