@@ -7,9 +7,12 @@ from evaluador.api.examples import load_examples
 from evaluador.api.mappers import (
     diagnostics_out,
     explanation_out,
+    game_move_out,
+    game_state_out,
     occurrence_out,
     syntax_tree_out,
     to_declarations,
+    to_environment,
     to_raw_interpretation,
 )
 from evaluador.api.schemas import (
@@ -18,14 +21,26 @@ from evaluador.api.schemas import (
     ExampleOut,
     FormulaAnalysisOut,
     FormulaIn,
+    GameMoveIn,
+    GameMoveOut,
+    GameStartIn,
+    GameStateOut,
     HealthOut,
     InterpretationRequest,
     LanguageIn,
     ProjectIn,
 )
 from evaluador.core.analysis import analyze_formula
-from evaluador.core.errors import has_errors
-from evaluador.core.evaluation import evaluate
+from evaluador.core.errors import Span, has_errors
+from evaluador.core.evaluation import ValidInput, evaluate, validate
+from evaluador.core.game import (
+    InvalidMove,
+    InvalidState,
+    Role,
+    initial_state,
+    restore_state,
+    take_turn,
+)
 from evaluador.core.interpretation import build_interpretation
 from evaluador.core.language import build_signature
 
@@ -121,3 +136,46 @@ def get_example(example_id: str) -> ExampleOut:
         if example.id == example_id:
             return example
     raise HTTPException(status_code=404, detail=f"No existe el ejemplo '{example_id}'.")
+
+
+@router.post("/game/start")
+def game_start(request: GameStartIn) -> GameStateOut:
+    valid = _valid_project(request.project)
+    state = initial_state(valid.formula, valid.environment, Role(request.user_role))
+    return game_state_out(state, request.project, valid.interpretation)
+
+
+@router.post("/game/move")
+def game_move(request: GameMoveIn) -> GameMoveOut:
+    sent = request.state
+    valid = _valid_project(sent.project)
+    try:
+        state = restore_state(
+            valid.formula,
+            Span(sent.start, sent.end),
+            to_environment(sent),
+            Role(sent.user_role),
+            valid.interpretation,
+        )
+        result = take_turn(state, request.move, valid.interpretation)
+    except (InvalidState, InvalidMove) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    return game_move_out(result, sent.project, valid.interpretation)
+
+
+def _valid_project(project: ProjectIn) -> ValidInput:
+    """Jugar revela el valor de verdad: con errores en la entrada no se juega."""
+    constants, functions, predicates = to_declarations(project.language)
+    checked = validate(
+        constants=constants,
+        functions=functions,
+        predicates=predicates,
+        interpretation=to_raw_interpretation(project.interpretation),
+        formula=project.formula,
+        environment=project.environment,
+    )
+    if checked.valid is None:
+        raise HTTPException(
+            status_code=422, detail="El proyecto tiene errores; corrígelos antes de jugar."
+        )
+    return checked.valid

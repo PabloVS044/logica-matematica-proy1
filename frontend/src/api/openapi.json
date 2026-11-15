@@ -236,6 +236,82 @@
           }
         }
       }
+    },
+    "/api/game/start": {
+      "post": {
+        "summary": "Game Start",
+        "operationId": "game_start_api_game_start_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameStartIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameStateOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/game/move": {
+      "post": {
+        "summary": "Game Move",
+        "operationId": "game_move_api_game_move_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameMoveIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameMoveOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -644,6 +720,243 @@
           "value"
         ],
         "title": "FunctionRowIn"
+      },
+      "GameMoveIn": {
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/GameStateIn"
+          },
+          "move": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Move"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "title": "GameMoveIn",
+        "description": "Sin `move` juega la máquina."
+      },
+      "GameMoveOut": {
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/GameStateOut"
+          },
+          "machine_move": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machine Move"
+          },
+          "finished": {
+            "type": "boolean",
+            "title": "Finished"
+          },
+          "winner": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "usuario",
+                  "máquina"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Winner"
+          },
+          "commentary": {
+            "type": "string",
+            "title": "Commentary"
+          },
+          "mistake": {
+            "type": "boolean",
+            "title": "Mistake",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "machine_move",
+          "finished",
+          "winner",
+          "commentary",
+          "mistake"
+        ],
+        "title": "GameMoveOut"
+      },
+      "GameOptionOut": {
+        "properties": {
+          "move": {
+            "type": "string",
+            "title": "Move"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "move",
+          "label"
+        ],
+        "title": "GameOptionOut"
+      },
+      "GameStartIn": {
+        "properties": {
+          "project": {
+            "$ref": "#/components/schemas/ProjectIn"
+          },
+          "user_role": {
+            "type": "string",
+            "enum": [
+              "verificador",
+              "falsificador"
+            ],
+            "title": "User Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project",
+          "user_role"
+        ],
+        "title": "GameStartIn"
+      },
+      "GameStateIn": {
+        "properties": {
+          "project": {
+            "$ref": "#/components/schemas/ProjectIn"
+          },
+          "start": {
+            "type": "integer",
+            "title": "Start"
+          },
+          "end": {
+            "type": "integer",
+            "title": "End"
+          },
+          "environment": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Environment"
+          },
+          "env_label": {
+            "type": "string",
+            "title": "Env Label"
+          },
+          "user_role": {
+            "type": "string",
+            "enum": [
+              "verificador",
+              "falsificador"
+            ],
+            "title": "User Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project",
+          "start",
+          "end",
+          "environment",
+          "env_label",
+          "user_role"
+        ],
+        "title": "GameStateIn",
+        "description": "Posición del juego. El servidor no guarda partidas: el cliente reenvía el estado completo."
+      },
+      "GameStateOut": {
+        "properties": {
+          "project": {
+            "$ref": "#/components/schemas/ProjectIn"
+          },
+          "start": {
+            "type": "integer",
+            "title": "Start"
+          },
+          "end": {
+            "type": "integer",
+            "title": "End"
+          },
+          "environment": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Environment"
+          },
+          "env_label": {
+            "type": "string",
+            "title": "Env Label"
+          },
+          "user_role": {
+            "type": "string",
+            "enum": [
+              "verificador",
+              "falsificador"
+            ],
+            "title": "User Role"
+          },
+          "formula": {
+            "type": "string",
+            "title": "Formula"
+          },
+          "turn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "usuario",
+                  "máquina"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turn"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/GameOptionOut"
+            },
+            "type": "array",
+            "title": "Options"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project",
+          "start",
+          "end",
+          "environment",
+          "env_label",
+          "user_role",
+          "formula",
+          "turn",
+          "options"
+        ],
+        "title": "GameStateOut"
       },
       "HTTPValidationError": {
         "properties": {

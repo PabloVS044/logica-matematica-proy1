@@ -7,17 +7,24 @@ from evaluador.api.schemas import (
     BindingOut,
     DiagnosticOut,
     ExplainNodeOut,
+    GameMoveOut,
+    GameOptionOut,
+    GameStateIn,
+    GameStateOut,
     InterpretationIn,
     LanguageIn,
     LocationOut,
     OccurrenceOut,
+    ProjectIn,
     SyntaxKind,
     SyntaxNodeOut,
 )
+from evaluador.core.environment import Environment
 from evaluador.core.errors import Diagnostic
 from evaluador.core.explain import ExplainNode
 from evaluador.core.freevars import VarOccurrence
-from evaluador.core.interpretation import FunctionRow, RawInterpretation
+from evaluador.core.game import GameState, TurnResult, legal_moves, move_label, turn
+from evaluador.core.interpretation import FunctionRow, Interpretation, RawInterpretation
 from evaluador.core.language import SymbolDecl
 from evaluador.core.printer import format_formula, format_term
 from evaluador.core.syntax_tree import (
@@ -60,6 +67,10 @@ def to_raw_interpretation(interp: InterpretationIn) -> RawInterpretation:
         },
         predicates={name: [tuple(row) for row in rows] for name, rows in interp.predicates.items()},
     )
+
+
+def to_environment(state: GameStateIn) -> Environment:
+    return Environment(dict(state.environment), state.env_label)
 
 
 # ------------------------------------------------------------------ salida
@@ -187,4 +198,33 @@ def _explain_node(node: ExplainNode, ids: Iterator[str]) -> ExplainNodeOut:
         computations=list(node.computations),
         pruned=node.pruned,
         children=[_explain_node(child, ids) for child in node.children],
+    )
+
+
+def game_state_out(state: GameState, project: ProjectIn, interp: Interpretation) -> GameStateOut:
+    player = turn(state)
+    return GameStateOut(
+        project=project,
+        start=state.formula.span.start,
+        end=state.formula.span.end,
+        environment=dict(state.env.values),
+        env_label=state.env.label,
+        user_role=state.user_role.value,
+        formula=format_formula(state.formula),
+        turn=player.value if player is not None else None,
+        options=[
+            GameOptionOut(move=move, label=move_label(state, move))
+            for move in legal_moves(state, interp)
+        ],
+    )
+
+
+def game_move_out(result: TurnResult, project: ProjectIn, interp: Interpretation) -> GameMoveOut:
+    return GameMoveOut(
+        state=game_state_out(result.state, project, interp),
+        machine_move=result.machine_move,
+        finished=result.winner is not None,
+        winner=result.winner.value if result.winner is not None else None,
+        commentary=result.commentary,
+        mistake=result.mistake,
     )
