@@ -12,6 +12,7 @@ from evaluador.core.game import (
     initial_state,
     legal_moves,
     turn,
+    winner,
 )
 from evaluador.core.interpretation import Interpretation
 from evaluador.core.parser import parse
@@ -100,3 +101,20 @@ def test_implication_is_played_as_disjunction() -> None:
 def test_invalid_move(text: str, move: str) -> None:
     with pytest.raises(InvalidMove):
         apply(start(text, x="1", y="1"), move, SLIDES10)
+
+
+def test_no_winner_before_atomic() -> None:
+    assert winner(start("∃x P(x)"), SLIDES10) is None
+
+
+@pytest.mark.parametrize(
+    ("value", "role", "expected"),
+    [
+        ("1", Role.VERIFIER, Player.USER),
+        ("1", Role.FALSIFIER, Player.MACHINE),
+        ("3", Role.VERIFIER, Player.MACHINE),
+        ("3", Role.FALSIFIER, Player.USER),
+    ],
+)
+def test_winner_at_atomic(value: str, role: Role, expected: Player) -> None:
+    assert winner(start("P(x)", role, x=value), SLIDES10) is expected

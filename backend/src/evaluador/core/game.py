@@ -19,6 +19,7 @@ from enum import StrEnum
 
 from evaluador.core.environment import Environment
 from evaluador.core.interpretation import Interpretation
+from evaluador.core.semantics import satisfies
 from evaluador.core.syntax_tree import And, Eq, Exists, ForAll, Formula, Implies, Not, Or, Pred
 
 LEFT = "izquierda"
@@ -86,6 +87,12 @@ def apply(state: GameState, move: Move, interp: Interpretation) -> GameState:
     return _skip_negations(_chosen(state, move))
 
 
+def winner(state: GameState, interp: Interpretation) -> Player | None:
+    if not isinstance(state.formula, Eq | Pred):
+        return None
+    return _winning_player(state, interp)
+
+
 def _chosen(state: GameState, move: Move) -> GameState:
     env, role = state.env, state.user_role
     match state.formula:
@@ -103,3 +110,9 @@ def _skip_negations(state: GameState) -> GameState:
     while isinstance(state.formula, Not):
         state = GameState(state.formula.body, state.env, state.user_role.opponent)
     return state
+
+
+def _winning_player(state: GameState, interp: Interpretation) -> Player:
+    if satisfies(state.formula, interp, state.env):
+        return state.player(Role.VERIFIER)
+    return state.player(Role.FALSIFIER)
