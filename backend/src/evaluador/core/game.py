@@ -87,6 +87,15 @@ def apply(state: GameState, move: Move, interp: Interpretation) -> GameState:
     return _skip_negations(_chosen(state, move))
 
 
+def machine_move(state: GameState, interp: Interpretation) -> Move:
+    """Estrategia ganadora: la primera jugada que deja ganando a la máquina."""
+    moves = legal_moves(state, interp)
+    for move in moves:
+        if _winning_player(apply(state, move, interp), interp) is Player.MACHINE:
+            return move
+    return moves[0]
+
+
 def winner(state: GameState, interp: Interpretation) -> Player | None:
     if not isinstance(state.formula, Eq | Pred):
         return None

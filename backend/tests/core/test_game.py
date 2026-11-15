@@ -11,6 +11,7 @@ from evaluador.core.game import (
     apply,
     initial_state,
     legal_moves,
+    machine_move,
     turn,
     winner,
 )
@@ -118,3 +119,19 @@ def test_no_winner_before_atomic() -> None:
 )
 def test_winner_at_atomic(value: str, role: Role, expected: Player) -> None:
     assert winner(start("P(x)", role, x=value), SLIDES10) is expected
+
+
+def test_machine_picks_first_counterexample() -> None:
+    assert machine_move(start("∀x P(x)"), SLIDES10) == "3"
+
+
+def test_machine_picks_first_witness() -> None:
+    assert machine_move(start("∃x ¬P(x)", Role.FALSIFIER), SLIDES10) == "3"
+
+
+def test_machine_picks_true_disjunct() -> None:
+    assert machine_move(start("R(x, x) ∨ P(x)", Role.FALSIFIER, x="1"), SLIDES10) == RIGHT
+
+
+def test_losing_machine_picks_first_move() -> None:
+    assert machine_move(start("∃x R(x, x)", Role.FALSIFIER), SLIDES10) == "1"
