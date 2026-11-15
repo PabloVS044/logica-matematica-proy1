@@ -54,6 +54,33 @@ class ProjectIn(BaseModel):
     environment: dict[str, str] = Field(default_factory=dict)
 
 
+GameRole = Literal["verificador", "falsificador"]
+GamePlayer = Literal["usuario", "máquina"]
+
+
+class GameStartIn(BaseModel):
+    project: ProjectIn
+    user_role: GameRole
+
+
+class GameStateIn(BaseModel):
+    """Posición del juego. El servidor no guarda partidas: el cliente reenvía el estado completo."""
+
+    project: ProjectIn
+    start: int
+    end: int
+    environment: dict[str, str]
+    env_label: str
+    user_role: GameRole
+
+
+class GameMoveIn(BaseModel):
+    """Sin `move` juega la máquina."""
+
+    state: GameStateIn
+    move: str | None = None
+
+
 # ------------------------------------------------------------------ salida
 
 
@@ -177,3 +204,29 @@ class ExampleOut(OutModel):
 class HealthOut(OutModel):
     status: str
     version: str
+
+
+class GameOptionOut(OutModel):
+    move: str
+    label: str  # "P(x)", "¬P(x)" o "x ↦ a"
+
+
+class GameStateOut(OutModel):
+    project: ProjectIn
+    start: int
+    end: int
+    environment: dict[str, str]
+    env_label: str
+    user_role: GameRole
+    formula: str
+    turn: GamePlayer | None = None
+    options: list[GameOptionOut] = Field(default_factory=list)
+
+
+class GameMoveOut(OutModel):
+    state: GameStateOut
+    machine_move: str | None = None
+    finished: bool
+    winner: GamePlayer | None = None
+    commentary: str
+    mistake: bool = False
