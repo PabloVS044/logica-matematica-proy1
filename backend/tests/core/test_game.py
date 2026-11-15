@@ -9,10 +9,12 @@ from evaluador.core.game import (
     Player,
     Role,
     apply,
+    commentary,
     initial_state,
     is_mistake,
     legal_moves,
     machine_move,
+    move_label,
     turn,
     winner,
 )
@@ -147,3 +149,30 @@ def test_mistake() -> None:
 def test_no_mistake_without_winning_strategy() -> None:
     s = start("∃x R(x, x)", Role.VERIFIER)
     assert not any(is_mistake(s, move, SLIDES10) for move in legal_moves(s, SLIDES10))
+
+
+def test_move_labels() -> None:
+    s = start("∃x P(x)")
+    assert [move_label(s, m) for m in legal_moves(s, SLIDES10)] == ["x ↦ 1", "x ↦ 2", "x ↦ 3"]
+    s = start("P(x) → R(x, y)")
+    assert [move_label(s, m) for m in legal_moves(s, SLIDES10)] == ["¬P(x)", "R(x, y)"]
+
+
+def test_commentary() -> None:
+    s = start("∀x P(x)")
+    assert commentary(s, "3", SLIDES10) == "Elijo x ↦ 3 porque ℐ ⊭_{l[x↦3]} P(x)."
+    s = start("∃x R(x, x)", Role.FALSIFIER)
+    assert commentary(s, "1", SLIDES10) == "Ninguna opción me favorece; elijo x ↦ 1."
+
+
+def test_course_example_full_game() -> None:
+    # ∀x ∃y R(x, y) es V: el usuario elige x y la máquina responde con un testigo.
+    s = start("∀x ∃y R(x, y)", Role.FALSIFIER)
+    s = apply(s, "2", SLIDES10)
+    assert turn(s) is Player.MACHINE
+    move = machine_move(s, SLIDES10)
+    assert move == "1"
+    assert commentary(s, move, SLIDES10) == "Elijo y ↦ 1 porque ℐ ⊨_{l[x↦2][y↦1]} R(x, y)."
+    s = apply(s, move, SLIDES10)
+    assert turn(s) is None
+    assert winner(s, SLIDES10) is Player.MACHINE

@@ -18,7 +18,9 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from evaluador.core.environment import Environment
+from evaluador.core.explain import sat
 from evaluador.core.interpretation import Interpretation
+from evaluador.core.printer import format_formula
 from evaluador.core.semantics import satisfies
 from evaluador.core.syntax_tree import And, Eq, Exists, ForAll, Formula, Implies, Not, Or, Pred
 
@@ -107,6 +109,25 @@ def is_mistake(state: GameState, move: Move, interp: Interpretation) -> bool:
     before = _winning_player(state, interp)
     after = _winning_player(apply(state, move, interp), interp)
     return before is Player.USER and after is Player.MACHINE
+
+
+def move_label(state: GameState, move: Move) -> str:
+    """Texto de la jugada: la subfórmula elegida o la asignación x ↦ a."""
+    match state.formula:
+        case Exists(var) | ForAll(var):
+            return f"{var} ↦ {move}"
+        case _:
+            return format_formula(_chosen(state, move).formula)
+
+
+def commentary(state: GameState, move: Move, interp: Interpretation) -> str:
+    """Comentario de la máquina sobre su jugada."""
+    label = move_label(state, move)
+    if _winning_player(apply(state, move, interp), interp) is Player.USER:
+        return f"Ninguna opción me favorece; elijo {label}."
+    chosen = _chosen(state, move)
+    value = satisfies(chosen.formula, interp, chosen.env)
+    return f"Elijo {label} porque {sat(chosen.env.label, chosen.formula, value)}."
 
 
 def _chosen(state: GameState, move: Move) -> GameState:
