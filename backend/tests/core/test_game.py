@@ -16,6 +16,7 @@ from evaluador.core.game import (
     machine_move,
     move_label,
     outcome,
+    take_turn,
     turn,
     winner,
 )
@@ -186,3 +187,44 @@ def test_course_example_full_game() -> None:
     s = apply(s, move, SLIDES10)
     assert turn(s) is None
     assert winner(s, SLIDES10) is Player.MACHINE
+
+
+def test_user_turn() -> None:
+    result = take_turn(start("∀x P(x)", Role.FALSIFIER), "1", SLIDES10)
+    assert result.state.formula == parse("P(x)")
+    assert result.state.env.label == "l[x↦1]"
+    assert result.machine_move is None
+    assert result.winner is Player.MACHINE
+    assert result.mistake
+    assert result.commentary == "Elegiste x ↦ 1."
+
+
+def test_machine_turn() -> None:
+    result = take_turn(start("∀x P(x)"), None, SLIDES10)
+    assert result.state.formula == parse("P(x)")
+    assert result.state.env.label == "l[x↦3]"
+    assert result.machine_move == "x ↦ 3"
+    assert result.winner is Player.MACHINE
+    assert not result.mistake
+    assert result.commentary == "Elijo x ↦ 3 porque ℐ ⊭_{l[x↦3]} P(x)."
+
+
+def test_turn_when_game_is_over() -> None:
+    result = take_turn(start("P(x)", x="1"), None, SLIDES10)
+    assert result.state == start("P(x)", x="1")
+    assert result.machine_move is None
+    assert result.winner is Player.USER
+    assert result.commentary == "ℐ ⊨_{l} P(x): gana el verificador."
+
+
+@pytest.mark.parametrize(
+    ("text", "role", "move"),
+    [
+        ("∀x P(x)", Role.VERIFIER, "1"),
+        ("∀x P(x)", Role.FALSIFIER, None),
+        ("P(x)", Role.VERIFIER, "1"),
+    ],
+)
+def test_turn_out_of_order(text: str, role: Role, move: str | None) -> None:
+    with pytest.raises(InvalidMove):
+        take_turn(start(text, role, x="1"), move, SLIDES10)

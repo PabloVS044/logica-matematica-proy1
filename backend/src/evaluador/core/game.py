@@ -139,6 +139,46 @@ def outcome(state: GameState, interp: Interpretation) -> str:
     return f"{sat(state.env.label, state.formula, value)}: gana el {role}."
 
 
+@dataclass(frozen=True, slots=True)
+class TurnResult:
+    state: GameState
+    machine_move: str | None
+    winner: Player | None
+    mistake: bool
+    commentary: str
+
+
+def take_turn(state: GameState, move: Move | None, interp: Interpretation) -> TurnResult:
+    """Una jugada por llamada: la del usuario si llega `move`; si no, la de la máquina."""
+    player = turn(state)
+    if player is None:
+        if move is not None:
+            raise InvalidMove("La partida ya terminó.")
+        return TurnResult(state, None, winner(state, interp), False, outcome(state, interp))
+    if move is None:
+        if player is Player.USER:
+            raise InvalidMove("Es tu turno: elige una jugada.")
+        chosen = machine_move(state, interp)
+        after = apply(state, chosen, interp)
+        return TurnResult(
+            after,
+            move_label(state, chosen),
+            winner(after, interp),
+            False,
+            commentary(state, chosen, interp),
+        )
+    if player is Player.MACHINE:
+        raise InvalidMove("Es el turno de la máquina.")
+    after = apply(state, move, interp)
+    return TurnResult(
+        after,
+        None,
+        winner(after, interp),
+        is_mistake(state, move, interp),
+        commentary(state, move, interp),
+    )
+
+
 def _chosen(state: GameState, move: Move) -> GameState:
     env, role = state.env, state.user_role
     match state.formula:
