@@ -15,6 +15,7 @@ from evaluador.core.game import (
     legal_moves,
     machine_move,
     move_label,
+    outcome,
     turn,
     winner,
 )
@@ -163,6 +164,15 @@ def test_commentary() -> None:
     assert commentary(s, "3", SLIDES10) == "Elijo x ↦ 3 porque ℐ ⊭_{l[x↦3]} P(x)."
     s = start("∃x R(x, x)", Role.FALSIFIER)
     assert commentary(s, "1", SLIDES10) == "Ninguna opción me favorece; elijo x ↦ 1."
+
+
+def test_commentary_of_user_move() -> None:
+    assert commentary(start("∀x P(x)", Role.FALSIFIER), "3", SLIDES10) == "Elegiste x ↦ 3."
+
+
+def test_outcome() -> None:
+    assert outcome(start("P(x)", x="3"), SLIDES10) == "ℐ ⊭_{l} P(x): gana el falsificador."
+    assert outcome(start("P(x)", x="1"), SLIDES10) == "ℐ ⊨_{l} P(x): gana el verificador."
 
 
 def test_course_example_full_game() -> None:

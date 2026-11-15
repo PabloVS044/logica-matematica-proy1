@@ -121,13 +121,22 @@ def move_label(state: GameState, move: Move) -> str:
 
 
 def commentary(state: GameState, move: Move, interp: Interpretation) -> str:
-    """Comentario de la máquina sobre su jugada."""
+    """Comentario sobre la jugada de quien tiene el turno."""
     label = move_label(state, move)
+    if turn(state) is Player.USER:
+        return f"Elegiste {label}."
     if _winning_player(apply(state, move, interp), interp) is Player.USER:
         return f"Ninguna opción me favorece; elijo {label}."
     chosen = _chosen(state, move)
     value = satisfies(chosen.formula, interp, chosen.env)
     return f"Elijo {label} porque {sat(chosen.env.label, chosen.formula, value)}."
+
+
+def outcome(state: GameState, interp: Interpretation) -> str:
+    """Por qué gana quien gana al llegar a una atómica."""
+    value = satisfies(state.formula, interp, state.env)
+    role = Role.VERIFIER if value else Role.FALSIFIER
+    return f"{sat(state.env.label, state.formula, value)}: gana el {role}."
 
 
 def _chosen(state: GameState, move: Move) -> GameState:
