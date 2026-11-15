@@ -123,6 +123,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/game/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Game Start */
+        post: operations["game_start_api_game_start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/game/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Game Move */
+        post: operations["game_move_api_game_move_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -257,6 +291,95 @@ export interface components {
             args: string[];
             /** Value */
             value: string;
+        };
+        /**
+         * GameMoveIn
+         * @description Sin `move` juega la máquina.
+         */
+        GameMoveIn: {
+            state: components["schemas"]["GameStateIn"];
+            /** Move */
+            move?: string | null;
+        };
+        /** GameMoveOut */
+        GameMoveOut: {
+            state: components["schemas"]["GameStateOut"];
+            /** Machine Move */
+            machine_move: string | null;
+            /** Finished */
+            finished: boolean;
+            /** Winner */
+            winner: ("usuario" | "máquina") | null;
+            /** Commentary */
+            commentary: string;
+            /**
+             * Mistake
+             * @default false
+             */
+            mistake: boolean;
+        };
+        /** GameOptionOut */
+        GameOptionOut: {
+            /** Move */
+            move: string;
+            /** Label */
+            label: string;
+        };
+        /** GameStartIn */
+        GameStartIn: {
+            project: components["schemas"]["ProjectIn"];
+            /**
+             * User Role
+             * @enum {string}
+             */
+            user_role: "verificador" | "falsificador";
+        };
+        /**
+         * GameStateIn
+         * @description Posición del juego. El servidor no guarda partidas: el cliente reenvía el estado completo.
+         */
+        GameStateIn: {
+            project: components["schemas"]["ProjectIn"];
+            /** Start */
+            start: number;
+            /** End */
+            end: number;
+            /** Environment */
+            environment: {
+                [key: string]: string;
+            };
+            /** Env Label */
+            env_label: string;
+            /**
+             * User Role
+             * @enum {string}
+             */
+            user_role: "verificador" | "falsificador";
+        };
+        /** GameStateOut */
+        GameStateOut: {
+            project: components["schemas"]["ProjectIn"];
+            /** Start */
+            start: number;
+            /** End */
+            end: number;
+            /** Environment */
+            environment: {
+                [key: string]: string;
+            };
+            /** Env Label */
+            env_label: string;
+            /**
+             * User Role
+             * @enum {string}
+             */
+            user_role: "verificador" | "falsificador";
+            /** Formula */
+            formula: string;
+            /** Turn */
+            turn: ("usuario" | "máquina") | null;
+            /** Options */
+            options: components["schemas"]["GameOptionOut"][];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -591,6 +714,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExampleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    game_start_api_game_start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GameStartIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GameStateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    game_move_api_game_move_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GameMoveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GameMoveOut"];
                 };
             };
             /** @description Validation Error */
