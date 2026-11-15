@@ -64,9 +64,24 @@ Documentación interactiva en `http://localhost:8000/docs` con el backend en mar
 | POST | `/api/interpretation/validate` | Valida dominio, constantes, funciones y relaciones |
 | POST | `/api/evaluate` | Evalúa un proyecto completo y devuelve la explicación |
 | GET | `/api/examples` | Ejemplos de las presentaciones del curso |
+| POST | `/api/game/start` | Inicia el juego de Hintikka con el papel elegido por el usuario |
+| POST | `/api/game/move` | Hace una jugada del juego: la del usuario o la de la máquina |
 
 Si la entrada tiene errores, `/api/evaluate` responde `ok: false` con los diagnósticos y
 **sin** valor de verdad.
+
+### Juego de Hintikka
+
+El servidor no guarda partidas: el cliente envía el estado completo en cada jugada.
+
+1. `/api/game/start` recibe `{project, user_role}` (`"verificador"` o `"falsificador"`) y
+   devuelve el estado: subfórmula actual, entorno, turno y opciones.
+2. `/api/game/move` recibe `{state, move}` y hace una sola jugada. Con `move` juega el usuario
+   (una de las opciones); con `move: null` juega la máquina. Responde
+   `{state, machine_move, finished, winner, commentary, mistake}`, donde `mistake` indica que el
+   usuario perdió su estrategia ganadora con esa jugada.
+
+Si el proyecto tiene errores o la jugada no es válida, responde 422 y no se juega.
 
 Formato de proyecto (el mismo que reciben `/api/evaluate` y los ejemplos):
 
