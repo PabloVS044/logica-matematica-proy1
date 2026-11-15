@@ -10,6 +10,7 @@ from evaluador.core.game import (
     Role,
     apply,
     initial_state,
+    is_mistake,
     legal_moves,
     machine_move,
     turn,
@@ -135,3 +136,14 @@ def test_machine_picks_true_disjunct() -> None:
 
 def test_losing_machine_picks_first_move() -> None:
     assert machine_move(start("∃x R(x, x)", Role.FALSIFIER), SLIDES10) == "1"
+
+
+def test_mistake() -> None:
+    s = start("∀x P(x)", Role.FALSIFIER)
+    assert is_mistake(s, "1", SLIDES10)
+    assert not is_mistake(s, "3", SLIDES10)
+
+
+def test_no_mistake_without_winning_strategy() -> None:
+    s = start("∃x R(x, x)", Role.VERIFIER)
+    assert not any(is_mistake(s, move, SLIDES10) for move in legal_moves(s, SLIDES10))

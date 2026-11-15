@@ -102,6 +102,13 @@ def winner(state: GameState, interp: Interpretation) -> Player | None:
     return _winning_player(state, interp)
 
 
+def is_mistake(state: GameState, move: Move, interp: Interpretation) -> bool:
+    """El usuario tenía estrategia ganadora y la pierde con esta jugada."""
+    before = _winning_player(state, interp)
+    after = _winning_player(apply(state, move, interp), interp)
+    return before is Player.USER and after is Player.MACHINE
+
+
 def _chosen(state: GameState, move: Move) -> GameState:
     env, role = state.env, state.user_role
     match state.formula:
