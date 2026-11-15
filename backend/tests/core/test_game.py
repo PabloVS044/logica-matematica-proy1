@@ -1,11 +1,13 @@
 import pytest
 
 from evaluador.core.environment import Environment
+from evaluador.core.errors import Span
 from evaluador.core.game import (
     LEFT,
     RIGHT,
     GameState,
     InvalidMove,
+    InvalidState,
     Player,
     Role,
     apply,
@@ -16,6 +18,7 @@ from evaluador.core.game import (
     machine_move,
     move_label,
     outcome,
+    restore_state,
     take_turn,
     turn,
     winner,
@@ -228,3 +231,31 @@ def test_turn_when_game_is_over() -> None:
 def test_turn_out_of_order(text: str, role: Role, move: str | None) -> None:
     with pytest.raises(InvalidMove):
         take_turn(start(text, role, x="1"), move, SLIDES10)
+
+
+def test_restore_state() -> None:
+    root = parse("∀x ∃y R(x, y)")
+    inner = parse("∃y R(x, y)")
+    env = Environment({"x": "2"}, "l[x↦2]")
+    s = restore_state(root, Span(3, 13), env, Role.FALSIFIER, SLIDES10)
+    assert s == GameState(inner, env, Role.FALSIFIER)
+    assert s.formula.span == Span(3, 13)
+
+
+def test_restore_state_skips_negations() -> None:
+    s = restore_state(parse("¬P(x)"), Span(0, 5), Environment({"x": "1"}), Role.VERIFIER, SLIDES10)
+    assert s.formula == parse("P(x)")
+    assert s.user_role is Role.FALSIFIER
+
+
+@pytest.mark.parametrize(
+    ("span", "values"),
+    [
+        (Span(0, 4), {"x": "2"}),
+        (Span(3, 13), {}),
+        (Span(3, 13), {"x": "7"}),
+    ],
+)
+def test_restore_invalid_state(span: Span, values: dict[str, str]) -> None:
+    with pytest.raises(InvalidState):
+        restore_state(parse("∀x ∃y R(x, y)"), span, Environment(values), Role.VERIFIER, SLIDES10)

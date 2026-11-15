@@ -18,7 +18,9 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from evaluador.core.environment import Environment
+from evaluador.core.errors import Span
 from evaluador.core.explain import sat
+from evaluador.core.freevars import free_vars
 from evaluador.core.interpretation import Interpretation
 from evaluador.core.printer import format_formula
 from evaluador.core.semantics import satisfies
@@ -31,6 +33,10 @@ type Move = str  # LEFT o RIGHT en ∨, ∧, →; un elemento de 𝒟 en ∃, �
 
 
 class InvalidMove(ValueError):
+    pass
+
+
+class InvalidState(ValueError):
     pass
 
 
@@ -59,6 +65,20 @@ class GameState:
 
 
 def initial_state(formula: Formula, env: Environment, user_role: Role) -> GameState:
+    return _skip_negations(GameState(formula, env, user_role))
+
+
+def restore_state(
+    root: Formula, span: Span, env: Environment, user_role: Role, interp: Interpretation
+) -> GameState:
+    """Posición enviada por el cliente; la subfórmula se ubica por su lugar en el texto."""
+    formula = _subformula_at(root, span)
+    if formula is None:
+        raise InvalidState("La posición no corresponde a ninguna subfórmula.")
+    if not free_vars(formula).issubset(env.values):
+        raise InvalidState("El entorno no asigna todas las variables libres.")
+    if any(value not in interp.domain for value in env.values.values()):
+        raise InvalidState("El entorno usa elementos que no están en 𝒟.")
     return _skip_negations(GameState(formula, env, user_role))
 
 
@@ -190,6 +210,18 @@ def _chosen(state: GameState, move: Move) -> GameState:
             return GameState(body, env.update(var, move), role)
         case Not() | Eq() | Pred():
             raise InvalidMove("En esta posición nadie elige.")
+
+
+def _subformula_at(formula: Formula, span: Span) -> Formula | None:
+    if formula.span == span:
+        return formula
+    match formula:
+        case Not(body) | Exists(_, body) | ForAll(_, body):
+            return _subformula_at(body, span)
+        case And(left, right) | Or(left, right) | Implies(left, right):
+            return _subformula_at(left, span) or _subformula_at(right, span)
+        case Eq() | Pred():
+            return None
 
 
 def _skip_negations(state: GameState) -> GameState:
