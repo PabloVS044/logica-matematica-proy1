@@ -1,11 +1,25 @@
 """Propiedades lógicas verificadas con fórmulas e interpretaciones aleatorias."""
 
+from collections.abc import Callable
+
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from evaluador.core.environment import Environment
 from evaluador.core.explain import ExplainNode, Justification, Rule, explain
 from evaluador.core.freevars import free_vars
+from evaluador.core.game import (
+    GameState,
+    Player,
+    Role,
+    apply,
+    initial_state,
+    is_mistake,
+    legal_moves,
+    machine_move,
+    turn,
+    winner,
+)
 from evaluador.core.interpretation import Interpretation
 from evaluador.core.semantics import satisfies
 from evaluador.core.syntax_tree import And, Exists, ForAll, Formula, Implies, Not, Or
@@ -95,3 +109,39 @@ def _check_node(node: ExplainNode, interp: Interpretation) -> None:
         assert decisive, "todo nodo con hijos debe tener al menos un hijo decisivo"
     for child in node.children:
         _check_node(child, interp)
+
+
+def _finish(
+    state: GameState, interp: Interpretation, user_move: Callable[[GameState], str]
+) -> Player | None:
+    while (player := turn(state)) is not None:
+        move = machine_move(state, interp) if player is Player.MACHINE else user_move(state)
+        state = apply(state, move, interp)
+    return winner(state, interp)
+
+
+def _right_role(phi: Formula, model: Model) -> Role:
+    interp, env = model
+    return Role.VERIFIER if satisfies(phi, interp, env) else Role.FALSIFIER
+
+
+@given(formulas, models(), st.data())
+def test_machine_wins_from_the_right_role(phi: Formula, model: Model, data: st.DataObject) -> None:
+    interp, env = model
+    state = initial_state(phi, env, _right_role(phi, model).opponent)
+
+    def random_move(s: GameState) -> str:
+        return data.draw(st.sampled_from(legal_moves(s, interp)))
+
+    assert _finish(state, interp, random_move) is Player.MACHINE
+
+
+@given(formulas, models())
+def test_optimal_user_wins_from_the_right_role(phi: Formula, model: Model) -> None:
+    interp, env = model
+    state = initial_state(phi, env, _right_role(phi, model))
+
+    def best_move(s: GameState) -> str:
+        return next(m for m in legal_moves(s, interp) if not is_mistake(s, m, interp))
+
+    assert _finish(state, interp, best_move) is Player.USER
