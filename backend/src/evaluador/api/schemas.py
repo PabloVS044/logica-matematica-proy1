@@ -237,6 +237,15 @@ class SpeechMarkOut(OutModel):
     meaning: str
 
 
+class SymbolProposalOut(OutModel):
+    """Símbolo sin declarar que, al declararlo, hace que lo dictado se traduzca completo."""
+
+    name: str
+    kind: Literal["constante", "símbolo funcional", "predicado"]
+    arity: int  # 0 para constantes
+    formula: str | None  # la fórmula que resultaría; None si falta declarar algo más
+
+
 class SpeechTranslationOut(OutModel):
     ok: bool
     diagnostics: list[DiagnosticOut]
@@ -244,9 +253,10 @@ class SpeechTranslationOut(OutModel):
     parenthesized: str | None = None
     spoken: str | None = None  # cómo se lee la fórmula entendida
     marks: list[SpeechMarkOut] = Field(default_factory=list)
+    proposal: SymbolProposalOut | None = None
 
 
-Command = Literal["borrar", "vaciar", "aceptar", "evaluar", "cancelar"]
+Command = Literal["borrar", "vaciar", "aceptar", "evaluar", "cancelar", "declarar"]
 
 
 class CommandOut(OutModel):

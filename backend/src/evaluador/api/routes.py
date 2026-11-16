@@ -34,6 +34,7 @@ from evaluador.api.schemas import (
     SpeechIn,
     SpeechMarkOut,
     SpeechTranslationOut,
+    SymbolProposalOut,
 )
 from evaluador.core.analysis import analyze_formula
 from evaluador.core.errors import Span, has_errors
@@ -150,8 +151,19 @@ def speech_translate(request: SpeechIn) -> SpeechTranslationOut:
         for m in result.marks
     ]
     if result.formula is None:
+        proposal = result.proposal
         return SpeechTranslationOut(
-            ok=False, diagnostics=diagnostics_out(result.diagnostics), marks=marks
+            ok=False,
+            diagnostics=diagnostics_out(result.diagnostics),
+            marks=marks,
+            proposal=SymbolProposalOut(
+                name=proposal.name,
+                kind=proposal.kind.value,
+                arity=proposal.arity,
+                formula=proposal.formula,
+            )
+            if proposal
+            else None,
         )
     return SpeechTranslationOut(
         ok=True,
@@ -165,7 +177,8 @@ def speech_translate(request: SpeechIn) -> SpeechTranslationOut:
 
 @router.post("/speech/command")
 def speech_command(request: CommandIn) -> CommandOut:
-    """Reconoce comandos de voz: "borra eso", "borra todo", "listo", "evaluar", "cancelar"."""
+    """Reconoce comandos de voz: "borra eso", "borra todo", "listo", "evaluar", "cancelar",
+    "declara"."""
     command = detect_command(request.utterance)
     return CommandOut(command=command.value if command else None)
 

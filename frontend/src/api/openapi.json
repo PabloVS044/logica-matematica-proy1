@@ -218,7 +218,7 @@
     "/api/speech/command": {
       "post": {
         "summary": "Speech Command",
-        "description": "Reconoce comandos de voz: \"borra eso\", \"borra todo\", \"listo\", \"evaluar\", \"cancelar\".",
+        "description": "Reconoce comandos de voz: \"borra eso\", \"borra todo\", \"listo\", \"evaluar\", \"cancelar\",\n\"declara\".",
         "operationId": "speech_command_api_speech_command_post",
         "requestBody": {
           "content": {
@@ -458,7 +458,8 @@
                   "vaciar",
                   "aceptar",
                   "evaluar",
-                  "cancelar"
+                  "cancelar",
+                  "declarar"
                 ]
               },
               {
@@ -1498,6 +1499,16 @@
             },
             "type": "array",
             "title": "Marks"
+          },
+          "proposal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SymbolProposalOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -1507,7 +1518,8 @@
           "formula",
           "parenthesized",
           "spoken",
-          "marks"
+          "marks",
+          "proposal"
         ],
         "title": "SpeechTranslationOut"
       },
@@ -1528,6 +1540,47 @@
           "arity"
         ],
         "title": "SymbolDeclIn"
+      },
+      "SymbolProposalOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "constante",
+              "símbolo funcional",
+              "predicado"
+            ],
+            "title": "Kind"
+          },
+          "arity": {
+            "type": "integer",
+            "title": "Arity"
+          },
+          "formula": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Formula"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "kind",
+          "arity",
+          "formula"
+        ],
+        "title": "SymbolProposalOut",
+        "description": "Símbolo sin declarar que, al declararlo, hace que lo dictado se traduzca completo."
       },
       "SyntaxNodeOut": {
         "properties": {

@@ -53,3 +53,17 @@ def test_evaluation_is_spoken(client: TestClient, project: dict[str, Any]) -> No
 def test_analysis_is_spoken(client: TestClient, project: dict[str, Any]) -> None:
     request = {"language": project["language"], "formula": "¬R(i)"}
     assert client.post("/api/formula/analyze", json=request).json()["spoken"] == "no erre de i"
+
+
+def test_translate_proposes_missing_symbol(client: TestClient, project: dict[str, Any]) -> None:
+    # El lenguaje del proyecto declara R y Q, pero no P.
+    request = {"language": project["language"], "transcript": "para todo x tal que pe de x"}
+    data = client.post("/api/speech/translate", json=request).json()
+    assert data["ok"] is False
+    assert data["proposal"] == {
+        "name": "P",
+        "kind": "predicado",
+        "arity": 1,
+        "formula": "∀x P(x)",
+    }
+    assert data["diagnostics"][0]["message"].startswith("«pe» no es un símbolo del lenguaje")
