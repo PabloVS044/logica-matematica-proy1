@@ -162,6 +162,13 @@ Rule = Literal[
 JustificationOut = Literal["testigo", "contraejemplo", "comprobación completa"]
 
 
+class AtomOut(OutModel):
+    """Fórmula atómica ya calculada: `symbol` es el predicado o "=", `args` sus valores en 𝒟."""
+
+    symbol: str
+    args: list[str]
+
+
 class ExplainNodeOut(OutModel):
     id: str
     formula: str
@@ -176,6 +183,7 @@ class ExplainNodeOut(OutModel):
     justification: JustificationOut | None = None
     binding: BindingOut | None = None
     computations: list[str] = Field(default_factory=list)
+    atom: AtomOut | None = None
     pruned: bool = False
     children: list["ExplainNodeOut"] = Field(default_factory=list)
 

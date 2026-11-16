@@ -4,6 +4,7 @@ import itertools
 from collections.abc import Iterator
 
 from evaluador.api.schemas import (
+    AtomOut,
     BindingOut,
     DiagnosticOut,
     ExplainNodeOut,
@@ -196,6 +197,7 @@ def _explain_node(node: ExplainNode, ids: Iterator[str]) -> ExplainNodeOut:
         justification=node.justification.value if node.justification else None,
         binding=BindingOut(var=node.binding[0], value=node.binding[1]) if node.binding else None,
         computations=list(node.computations),
+        atom=AtomOut(symbol=node.atom[0], args=list(node.atom[1])) if node.atom else None,
         pruned=node.pruned,
         children=[_explain_node(child, ids) for child in node.children],
     )
