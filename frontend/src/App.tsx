@@ -23,6 +23,7 @@ import { CONFIG_TABS, type ConfigStatus, type ConfigTab } from './lib/config'
 import { narrate } from './lib/narration'
 import { buildMachine, machineState } from './lib/machine'
 import { fromProjectIn, toInterpretation, toLanguage, toProjectIn } from './lib/project'
+import * as ops from './lib/projectOps'
 import { MAX_DRAWN_ELEMENTS, quantifierProgress } from './lib/universe'
 import { useExamples } from './lib/useExamples'
 import { useLiveRequest } from './lib/useLiveRequest'
@@ -343,6 +344,15 @@ export default function App() {
                 language,
                 speaker,
                 onEvaluate: () => setEvaluateRequested(true),
+                onDeclare: (proposal) =>
+                  update((p) =>
+                    proposal.kind === 'constante'
+                      ? ops.addConstant(p, proposal.name)
+                      : ops.addSymbol(p, proposal.kind === 'predicado' ? 'predicates' : 'functions', {
+                          name: proposal.name,
+                          arity: proposal.arity,
+                        }),
+                  ),
               }}
               action={
                 <button

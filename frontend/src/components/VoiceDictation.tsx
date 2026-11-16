@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { api, type LanguageIn, type SpeechMark, type SpeechTranslation } from '../api/client'
+import {
+  api,
+  type LanguageIn,
+  type SpeechMark,
+  type SpeechTranslation,
+  type SymbolProposal,
+} from '../api/client'
 import { useDictation } from '../lib/useDictation'
 import { useLiveRequest } from '../lib/useLiveRequest'
 import type { Speaker } from '../lib/useSpeaker'
@@ -36,6 +42,7 @@ const COMMANDS: [string, string][] = [
   ['«listo»', 'inserta la fórmula'],
   ['«evaluar»', 'inserta y evalúa'],
   ['«cancelar»', 'cierra sin insertar'],
+  ['«declara»', 'declara el símbolo que falta'],
 ]
 
 const ROLE_STYLE: Record<SpeechMark['role'], string> = {
@@ -43,6 +50,12 @@ const ROLE_STYLE: Record<SpeechMark['role'], string> = {
   símbolo: 'font-bold text-ink',
   variable: 'italic text-true',
   desconocida: 'text-false underline decoration-wavy decoration-false underline-offset-4',
+}
+
+/** "Q como predicado de aridad 1", "c como constante". */
+function describe(proposal: SymbolProposal): string {
+  if (proposal.kind === 'constante') return `${proposal.name} como constante`
+  return `${proposal.name} como ${proposal.kind} de aridad ${proposal.arity}`
 }
 
 /** La transcripción con cada palabra coloreada según cómo se interpretó. */
@@ -72,8 +85,11 @@ export function VoiceDictation({
   speaker,
   onInsert,
   onEvaluate,
+  onDeclare,
   onClose,
 }: {
+  /** Declara en el lenguaje el símbolo que falta para entender lo dictado. */
+  onDeclare: (proposal: SymbolProposal) => void
   language: LanguageIn
   speaker: Speaker
   /** Inserta la fórmula dictada en el editor. */
@@ -87,7 +103,9 @@ export function VoiceDictation({
   const [notice, setNotice] = useState<string | null>(null)
   const queue = useRef(Promise.resolve())
   // «listo» y «evaluar» esperan a que termine la traducción de lo último que se dijo.
-  const [pendingAction, setPendingAction] = useState<'accept' | 'evaluate' | null>(null)
+  const [pendingAction, setPendingAction] = useState<'accept' | 'evaluate' | 'declare' | null>(
+    null,
+  )
   const cancelRef = useRef(() => {})
 
   // Las frases se procesan en orden: primero se pregunta si son un comando.
@@ -111,6 +129,9 @@ export function VoiceDictation({
           return
         case 'cancelar':
           cancelRef.current()
+          return
+        case 'declarar':
+          setPendingAction('declare')
           return
         default:
           setNotice(null)
@@ -137,6 +158,14 @@ export function VoiceDictation({
     [settings.readBack, speaker],
   )
 
+  // Al declarar cambia el lenguaje y la transcripción se vuelve a traducir sola.
+  function declare(proposal: SymbolProposal) {
+    onDeclare(proposal)
+    setNotice(
+      `Se declaró ${describe(proposal)}. Falta definir ${proposal.name}ᴵ en la interpretación.`,
+    )
+  }
+
   function cancel() {
     dictation.stop()
     speaker.stop()
@@ -149,6 +178,11 @@ export function VoiceDictation({
   useEffect(() => {
     if (!pendingAction || translation.pending) return
     setPendingAction(null)
+    if (pendingAction === 'declare') {
+      if (result?.proposal) declare(result.proposal)
+      else setNotice('No hay ningún símbolo que declarar.')
+      return
+    }
     if (!result?.ok || !result.formula) {
       setNotice(
         pendingAction === 'accept'
@@ -259,9 +293,28 @@ export function VoiceDictation({
         </div>
       )}
       {error && !dictation.interim && (
-        <p className="mt-2 rounded-md bg-false-soft px-2 py-1 text-sm text-false">
-          {error.message}
-        </p>
+        <div className="mt-2 rounded-md bg-false-soft px-2 py-1.5 text-sm text-false">
+          <p>{error.message}</p>
+          {result?.proposal && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <button
+                type="button"
+                onClick={() => declare(result.proposal!)}
+                className="rounded-md bg-accent px-3 py-1 font-bold text-surface hover:opacity-90"
+              >
+                Declarar {describe(result.proposal)}
+              </button>
+              {result.proposal.formula ? (
+                <span className="text-ink">
+                  quedaría <span className="formula text-base">{result.proposal.formula}</span>
+                </span>
+              ) : (
+                <span className="text-ink">después falta declarar otro símbolo</span>
+              )}
+              <span className="text-muted">o di «declara»</span>
+            </div>
+          )}
+        </div>
       )}
       {translation.error && <p className="mt-2 text-sm text-false">{translation.error}</p>}
       {dictation.error && <p className="mt-2 text-sm text-false">{dictation.error}</p>}

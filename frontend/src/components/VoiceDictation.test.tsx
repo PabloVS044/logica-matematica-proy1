@@ -17,9 +17,43 @@ function mockApi() {
       const body = init?.body ? JSON.parse(init.body as string) : {}
       let data: unknown = {}
       if (url === '/api/speech/command') {
-        const commands: Record<string, string> = { listo: 'aceptar', 'borra eso': 'borrar' }
+        const commands: Record<string, string> = {
+          listo: 'aceptar',
+          'borra eso': 'borrar',
+          declara: 'declarar',
+        }
         data = { command: commands[body.utterance.toLowerCase()] ?? null }
       } else if (url === '/api/speech/translate') {
+        const declaredQ = body.language.predicates.some((d: { name: string }) => d.name === 'Q')
+        if (body.transcript === 'q de x') {
+          data = declaredQ
+            ? {
+                ok: true,
+                diagnostics: [],
+                formula: 'Q(x)',
+                parenthesized: 'Q(x)',
+                spoken: 'cu de equis',
+                marks: [],
+                proposal: null,
+              }
+            : {
+                ok: false,
+                diagnostics: [
+                  {
+                    code: 'E-SPK-001',
+                    severity: 'error',
+                    message: '«q» no es un símbolo del lenguaje: no hay ningún predicado Q.',
+                    location: { kind: 'speech', start: 0, end: 1, path: [] },
+                  },
+                ],
+                formula: null,
+                parenthesized: null,
+                spoken: null,
+                marks: [],
+                proposal: { name: 'Q', kind: 'predicado', arity: 1, formula: 'Q(x)' },
+              }
+          return Promise.resolve({ ok: true, json: () => Promise.resolve(data) })
+        }
         const ok = body.transcript === 'para todo x P de x'
         data = ok
           ? {
@@ -56,6 +90,7 @@ function mockApi() {
 
 function Harness({ onEvaluate = () => {} }: { onEvaluate?: () => void }) {
   const [value, setValue] = useState('')
+  const [lang, setLang] = useState(language)
   const speaker = useSpeaker()
   return (
     <FormulaEditor
@@ -64,7 +99,16 @@ function Harness({ onEvaluate = () => {} }: { onEvaluate?: () => void }) {
       analysis={null}
       analysisError={null}
       onSubmit={() => {}}
-      voice={{ language, speaker, onEvaluate }}
+      voice={{
+        language: lang,
+        speaker,
+        onEvaluate,
+        onDeclare: (p) =>
+          setLang((l) => ({
+            ...l,
+            predicates: [...l.predicates, { name: p.name, arity: p.arity }],
+          })),
+      }}
     />
   )
 }
@@ -171,7 +215,7 @@ describe('dónde se inserta lo dictado', () => {
         analysis={null}
         analysisError={null}
         onSubmit={() => {}}
-        voice={{ language, speaker, onEvaluate: () => {} }}
+        voice={{ language, speaker, onEvaluate: () => {}, onDeclare: () => {} }}
       />
     )
   }
@@ -192,5 +236,33 @@ describe('dónde se inserta lo dictado', () => {
     await userEvent.click(screen.getByRole('button', { name: /Dictar/ }))
     await dictate('para todo x P de x', 'listo')
     await waitFor(() => expect(box.value).toBe('P(a) ∧ ∀x P(x)'))
+  })
+})
+
+describe('símbolos que faltan', () => {
+  it('ofrece declarar el símbolo y vuelve a traducir', async () => {
+    render(<Harness />)
+    await userEvent.click(screen.getByRole('button', { name: /Dictar/ }))
+    await dictate('q de x')
+    const button = await screen.findByRole('button', {
+      name: 'Declarar Q como predicado de aridad 1',
+    })
+    await userEvent.click(button)
+    expect(screen.getByText(/Se declaró Q como predicado de aridad 1/)).toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Insertar fórmula' })).toBeEnabled(),
+    )
+    expect(screen.queryByRole('button', { name: /Declarar Q/ })).not.toBeInTheDocument()
+  })
+
+  it('«declara» declara el símbolo por voz', async () => {
+    render(<Harness />)
+    await userEvent.click(screen.getByRole('button', { name: /Dictar/ }))
+    await dictate('q de x')
+    await screen.findByRole('button', { name: /Declarar Q/ })
+    await dictate('declara')
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Insertar fórmula' })).toBeEnabled(),
+    )
   })
 })

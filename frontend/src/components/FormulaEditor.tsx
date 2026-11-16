@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 
-import type { FormulaAnalysis, LanguageIn } from '../api/client'
+import type { FormulaAnalysis, LanguageIn, SymbolProposal } from '../api/client'
 import { applyShortcut, insertAt } from '../lib/formulaInput'
 import { recognitionConstructor } from '../lib/speech'
 import type { Speaker } from '../lib/useSpeaker'
@@ -21,6 +21,8 @@ export interface VoiceInput {
   speaker: Speaker
   /** Pide evaluar después de insertar la fórmula dictada (comando «evaluar»). */
   onEvaluate: () => void
+  /** Declara en el lenguaje un símbolo que se dictó y no existía. */
+  onDeclare: (proposal: SymbolProposal) => void
 }
 
 function MicIcon() {
@@ -231,6 +233,7 @@ export function FormulaEditor({
             insertDictated(formula)
             voice.onEvaluate()
           }}
+          onDeclare={voice.onDeclare}
           onClose={() => setDictating(false)}
         />
       )}

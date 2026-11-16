@@ -13,6 +13,7 @@ export type SyntaxNode = Schemas['SyntaxNodeOut']
 export type Example = Schemas['ExampleOut']
 export type SpeechTranslation = Schemas['SpeechTranslationOut']
 export type SpeechMark = Schemas['SpeechMarkOut']
+export type SymbolProposal = Schemas['SymbolProposalOut']
 export type VoiceCommand = Schemas['CommandOut']['command']
 
 export class ApiError extends Error {}

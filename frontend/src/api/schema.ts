@@ -120,7 +120,8 @@ export interface paths {
         put?: never;
         /**
          * Speech Command
-         * @description Reconoce comandos de voz: "borra eso", "borra todo", "listo", "evaluar", "cancelar".
+         * @description Reconoce comandos de voz: "borra eso", "borra todo", "listo", "evaluar", "cancelar",
+         *     "declara".
          */
         post: operations["speech_command_api_speech_command_post"];
         delete?: never;
@@ -226,7 +227,7 @@ export interface components {
         /** CommandOut */
         CommandOut: {
             /** Command */
-            command: ("borrar" | "vaciar" | "aceptar" | "evaluar" | "cancelar") | null;
+            command: ("borrar" | "vaciar" | "aceptar" | "evaluar" | "cancelar" | "declarar") | null;
         };
         /** DiagnosticOut */
         DiagnosticOut: {
@@ -578,6 +579,7 @@ export interface components {
             spoken: string | null;
             /** Marks */
             marks: components["schemas"]["SpeechMarkOut"][];
+            proposal: components["schemas"]["SymbolProposalOut"] | null;
         };
         /** SymbolDeclIn */
         SymbolDeclIn: {
@@ -585,6 +587,23 @@ export interface components {
             name: string;
             /** Arity */
             arity: number;
+        };
+        /**
+         * SymbolProposalOut
+         * @description Símbolo sin declarar que, al declararlo, hace que lo dictado se traduzca completo.
+         */
+        SymbolProposalOut: {
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "constante" | "símbolo funcional" | "predicado";
+            /** Arity */
+            arity: number;
+            /** Formula */
+            formula: string | null;
         };
         /**
          * SyntaxNodeOut
