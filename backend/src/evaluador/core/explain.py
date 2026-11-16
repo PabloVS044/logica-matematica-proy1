@@ -71,6 +71,8 @@ class ExplainNode:
     binding: tuple[str, Element] | None = None  # en hijos de cuantificador: (x, a)
     computations: tuple[str, ...] = ()  # cálculo de términos en atómicas
     pruned: bool = False  # hijos omitidos por superar el presupuesto de nodos
+    # en atómicas: símbolo comprobado (predicado o "=") y valores de sus argumentos en 𝒟
+    atom: tuple[str, tuple[Element, ...]] | None = None
 
     @property
     def decisive_children(self) -> tuple["ExplainNode", ...]:
@@ -158,7 +160,7 @@ class _Explainer:
                 reason = f"{_tuple(values)} {belongs} {name}ᴵ, por lo tanto {conclusion}."
                 return ExplainNode(
                     formula, label, (), value, Rule.ATOM_PRED, reason,
-                    computations=tuple(computations),
+                    computations=tuple(computations), atom=(name, values),
                 )  # fmt: skip
 
             case Eq(left, right):
@@ -170,7 +172,7 @@ class _Explainer:
                 reason = f"{relation}, por lo tanto {sat(label, formula, value)}."
                 return ExplainNode(
                     formula, label, (), value, Rule.ATOM_EQ, reason,
-                    computations=tuple(computations),
+                    computations=tuple(computations), atom=("=", (a, b)),
                 )  # fmt: skip
 
             case Not(body):

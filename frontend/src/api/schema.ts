@@ -161,6 +161,16 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AtomOut
+         * @description Fórmula atómica ya calculada: `symbol` es el predicado o "=", `args` sus valores en 𝒟.
+         */
+        AtomOut: {
+            /** Symbol */
+            symbol: string;
+            /** Args */
+            args: string[];
+        };
         /** BindingOut */
         BindingOut: {
             /** Var */
@@ -257,6 +267,7 @@ export interface components {
             binding: components["schemas"]["BindingOut"] | null;
             /** Computations */
             computations: string[];
+            atom: components["schemas"]["AtomOut"] | null;
             /**
              * Pruned
              * @default false

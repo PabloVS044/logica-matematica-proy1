@@ -316,6 +316,28 @@
   },
   "components": {
     "schemas": {
+      "AtomOut": {
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "args": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Args"
+          }
+        },
+        "type": "object",
+        "required": [
+          "symbol",
+          "args"
+        ],
+        "title": "AtomOut",
+        "description": "Fórmula atómica ya calculada: `symbol` es el predicado o \"=\", `args` sus valores en 𝒟."
+      },
       "BindingOut": {
         "properties": {
           "var": {
@@ -590,6 +612,16 @@
             "type": "array",
             "title": "Computations"
           },
+          "atom": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AtomOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "pruned": {
             "type": "boolean",
             "title": "Pruned",
@@ -618,6 +650,7 @@
           "justification",
           "binding",
           "computations",
+          "atom",
           "pruned",
           "children"
         ],

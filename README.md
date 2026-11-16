@@ -5,6 +5,10 @@ en una interpretación finita ingresada por el usuario, y explica por qué: test
 existenciales verdaderos, contraejemplos para universales falsos y comprobación completa
 para universales verdaderos o existenciales falsos.
 
+La evaluación se puede **ver en 3D**: como un *universo* (la interpretación, con sus elementos y
+relaciones) o como una *máquina* (la fórmula, con una pieza por subfórmula), animada paso a
+paso y narrada en lenguaje sencillo.
+
 ## Estructura
 
 ```
@@ -29,6 +33,16 @@ pip install -e '.[dev]'
 fastapi dev src/evaluador/api/main.py     # http://localhost:8000
 ```
 
+En Windows, si el sistema no tiene Python 3.12, `uv` crea el entorno con esa versión sin
+tocar el Python instalado:
+
+```bash
+cd backend
+uv venv --python 3.12 .venv
+uv pip install --python .venv/Scripts/python.exe -e '.[dev]'
+.venv/Scripts/fastapi dev src/evaluador/api/main.py
+```
+
 Frontend (en otra terminal):
 
 ```bash
@@ -39,18 +53,68 @@ pnpm dev                                   # http://localhost:5173 (redirige /ap
 
 ## Uso
 
-1. **Lenguaje**: declara constantes, símbolos funcionales y predicados con su aridad.
-2. **Interpretación ℐ**: escribe los elementos del dominio 𝒟 y define cada símbolo: el valor de
-   cada constante, la tabla completa de cada función y las tuplas de cada relación (casillas para
-   predicados unarios, matriz para binarios, lista para aridad mayor).
-3. **Fórmula**: usa la barra de símbolos o el teclado (`->` →, `&` ∧, `|` ∨, `~` ¬, `\A` ∀,
-   `\E` ∃). Los errores se subrayan mientras escribes y se muestra cómo se interpretó la fórmula.
-4. **Entorno**: si la fórmula tiene variables libres, asigna un elemento de 𝒟 a cada una.
-5. **Evaluar** (o Ctrl + Enter): muestra Verdadero o Falso en la notación del curso y la
-   justificación con testigos, contraejemplos o comprobación completa.
+La escena 3D ocupa toda la pantalla. Arriba está la barra con la configuración y las vistas;
+abajo, la fórmula.
 
-El proyecto se guarda automáticamente en el navegador. Con **Descargar** y **Cargar** se
-comparte como JSON, y **Ejemplos del curso** carga los ejemplos de las presentaciones.
+1. **Lenguaje · Interpretación · Entorno** (barra superior): abren un modal con pestañas.
+   - **Lenguaje**: declara constantes, símbolos funcionales y predicados con su aridad.
+   - **Interpretación ℐ**: escribe los elementos del dominio 𝒟 y define cada símbolo: el valor
+     de cada constante, la tabla completa de cada función y las tuplas de cada relación
+     (casillas para predicados unarios, matriz para binarios, lista para aridad mayor).
+   - **Entorno**: si la fórmula tiene variables libres, asigna un elemento de 𝒟 a cada una.
+
+   Un punto rojo en el botón indica errores; uno naranja, algo pendiente (dominio vacío o una
+   variable sin asignar).
+2. **Fórmula** (abajo): usa la barra de símbolos o el teclado (`->` →, `&` ∧, `|` ∨, `~` ¬,
+   `\A` ∀, `\E` ∃). Los errores se subrayan mientras escribes y se muestra cómo se interpretó.
+3. **Evaluar** (o Ctrl + Enter): muestra Verdadero o Falso en la notación del curso. **Ver
+   justificación** abre el árbol completo con testigos, contraejemplos o comprobación completa.
+4. **Animación**: al evaluar empieza a reproducirse. El panel derecho narra cada paso, resalta
+   la parte de la fórmula que se evalúa y lleva un marcador por cuantificador (∀: todos deben
+   cumplir; ∃: basta con uno). Los controles permiten pausar, avanzar paso a paso, cambiar la
+   velocidad y elegir el recorrido:
+   - **Como una persona**: se detiene en cuanto el resultado queda decidido (por ejemplo, al
+     hallar un testigo); lo que ya no hace falta revisar aparece tachado.
+   - **Todo**: todo lo que calculó el evaluador.
+   - **Solo lo decisivo**: solo las razones que deciden el resultado.
+
+   **Ver en notación formal** muestra cada paso con la notación del curso.
+
+El proyecto se guarda automáticamente en el navegador. El menú **Proyecto** permite descargarlo
+o cargarlo como JSON y empezar uno nuevo, y **Ejemplos del curso** carga los ejemplos de las
+presentaciones.
+
+## Vistas 3D
+
+El selector **Universo | Máquina** de la barra superior cambia la vista. La aplicación abre en
+la máquina (o en el universo, mientras no haya una fórmula válida).
+
+**Máquina**: la fórmula es una máquina con una pieza por subfórmula. Los valores de las
+variables viajan por los cables hasta los sensores y los resultados V/F regresan hasta la
+salida; cada pieza tiene una lámpara que late mientras trabaja y queda en V o F.
+
+| Subfórmula | Pieza | Qué hace |
+|------------|-------|----------|
+| `∀x φ`, `∃x φ` | Engranaje con un aro de cuentas | Prueba cada elemento de 𝒟 (las cuentas se encienden en verde o rojo); ∀ necesita que todos den V, ∃ que uno dé V |
+| `¬φ`, `φ ∧ ψ`, `φ ∨ ψ` | Compuerta lógica | Combina los resultados de sus entradas |
+| `φ → ψ` | Compuerta O con burbuja de negación en la entrada A | Dibuja la equivalencia `φ → ψ ≡ ¬φ ∨ ψ` |
+| `t₁ = t₂` | Balanza | Queda equilibrada si los dos valores son el mismo elemento |
+| `P(t₁, …, tₙ)` | Terminal | Muestra la consulta a la interpretación, p. ej. `R(1, 2) ? No` |
+
+Según el espacio libre, la máquina se dibuja vertical (la salida arriba) u horizontal (como una
+línea de producción, con la entrada a la izquierda).
+
+**Universo**: la interpretación. Cada elemento de 𝒟 es una esfera; los predicados unarios son
+anillos de color alrededor de los elementos que los cumplen y los binarios, flechas
+(`a → b` significa `(a, b) ∈ Rᴵ`). Las constantes aparecen bajo su elemento. Durante la
+animación, las etiquetas de las variables se deslizan hacia el elemento que les asigna el
+entorno, la flecha que se comprueba se ilumina y los elementos ya revisados llevan ✓ o ✗. Con
+un clic sobre un elemento se ven sus datos (constantes, predicados, pares y valores de las
+funciones unarias). Los predicados de aridad ≥ 3 y las funciones no se dibujan; el universo se
+dibuja hasta con 40 elementos.
+
+Con *prefers-reduced-motion* activado no hay animaciones: cada paso aparece en su estado final.
+La escena necesita WebGL; sin él, la evaluación y la justificación funcionan igual.
 
 ## API
 
@@ -69,6 +133,11 @@ Documentación interactiva en `http://localhost:8000/docs` con el backend en mar
 
 Si la entrada tiene errores, `/api/evaluate` responde `ok: false` con los diagnósticos y
 **sin** valor de verdad.
+
+En la explicación, cada fórmula atómica trae `atom`: el símbolo comprobado (el predicado o `=`)
+y los valores de sus argumentos en 𝒟, por ejemplo `{"symbol": "R", "args": ["1", "3"]}`. Lo usa
+la animación para saber qué flecha, anillo o balanza resaltar sin interpretar el texto de
+`reason`.
 
 ### Juego de Hintikka
 
@@ -113,6 +182,13 @@ cd backend && python -m evaluador.api.openapi_export > ../frontend/src/api/opena
 cd ../frontend && pnpm gen:api
 ```
 
+En Windows, la consola usa por defecto otra codificación y el esquema tiene símbolos como 𝒟;
+para exportarlo:
+
+```bash
+cd backend/src && PYTHONUTF8=1 ../.venv/Scripts/python -m evaluador.api.openapi_export > ../../frontend/src/api/openapi.json
+```
+
 Una prueba del backend falla si el esquema del frontend quedó desactualizado.
 
 ## Pruebas y calidad
@@ -126,6 +202,10 @@ mypy
 # frontend
 pnpm lint && pnpm typecheck && pnpm test
 ```
+
+La lógica de las vistas está separada del dibujo y tiene sus propias pruebas:
+`lib/universe.ts` (recorrido y marcador de cuantificadores), `lib/narration.ts` (narración) y
+`lib/machine.ts` (piezas de la máquina y su estado en cada paso).
 
 ## Producción
 

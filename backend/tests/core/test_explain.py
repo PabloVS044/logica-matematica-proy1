@@ -31,6 +31,13 @@ def test_atomic_equality_reason() -> None:
     assert node.reason.startswith("1 ≠ 0")
 
 
+def test_atoms_record_symbol_and_evaluated_args() -> None:
+    assert root("L(zero, s(x))", x="1").atom == ("L", ("0", "2"))
+    assert root("s(zero) = zero").atom == ("=", ("1", "0"))
+    assert root("Even(zero)").atom == ("Even", ("0",))
+    assert root("¬Even(zero)").atom is None
+
+
 def test_unary_predicate_has_no_tuple_parentheses() -> None:
     assert root("Even(zero)").reason.startswith("0 ∈ Evenᴵ")
 

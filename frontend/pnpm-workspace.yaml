@@ -1,0 +1,10 @@
+# Configuración de pnpm (solo ajustes; el frontend es un único paquete).
+
+# Igual que la política por defecto de pnpm 11 (la versión del CI): no se instalan versiones
+# publicadas hace menos de un día. Así pnpm 10 en local falla igual que el CI.
+minimumReleaseAge: 1440
+
+overrides:
+  # @react-three/postprocessing pide n8ao ^2.0.0; la 2.1.0 se publicó el 2026-11-15 y el CI
+  # la rechazaba por ser demasiado reciente. Se fija la 2.0.1 (agosto de 2026).
+  n8ao: 2.0.1
