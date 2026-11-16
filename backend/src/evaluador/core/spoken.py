@@ -8,6 +8,7 @@ no sabe leer. Aquí se arma la misma información en español corriente:
 """
 
 import itertools
+from collections.abc import Collection
 
 from evaluador.core.explain import ExplainNode, Justification
 from evaluador.core.verbalize import spoken_name, verbalize
@@ -17,10 +18,11 @@ def _truth(value: bool) -> str:
     return "verdadera" if value else "falsa"
 
 
-def spoken_verdict(root: ExplainNode) -> str:
+def spoken_verdict(root: ExplainNode, names: Collection[str] = ()) -> str:
+    """`names`: símbolos declarados, para distinguir al hablar p de P."""
     parts = [
         "Verdadero." if root.value else "Falso.",
-        f"La fórmula {verbalize(root.formula, spell=True)} es {_truth(root.value)}",
+        f"La fórmula {verbalize(root.formula, spell=True, names=names)} es {_truth(root.value)}",
     ]
     if root.env:
         values = ", ".join(f"{spoken_name(var)} igual a {value}" for var, value in root.env)
@@ -52,5 +54,7 @@ def spoken_verdict(root: ExplainNode) -> str:
     if last.justification is Justification.FULL_CHECK:
         parts.append("Se comprobó con cada elemento del dominio.")
     elif last is not root:
-        parts.append(f"Ahí, {verbalize(last.formula, spell=True)} es {_truth(last.value)}.")
+        parts.append(
+            f"Ahí, {verbalize(last.formula, spell=True, names=names)} es {_truth(last.value)}."
+        )
     return " ".join(parts)
