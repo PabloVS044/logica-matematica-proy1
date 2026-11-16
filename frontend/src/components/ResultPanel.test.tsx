@@ -18,6 +18,7 @@ const leaf = (value: boolean, binding: string, decisive: boolean): ExplainNode =
   justification: null,
   binding: { var: 'x', value: binding },
   computations: [],
+  atom: null,
   pruned: false,
   children: [],
 })
