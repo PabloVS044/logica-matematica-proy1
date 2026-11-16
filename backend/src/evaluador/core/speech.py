@@ -15,6 +15,7 @@ pero sobre palabras habladas. Tres ideas resuelven las ambigüedades del españo
 `translate(verbalize(φ)) == φ`.
 """
 
+import difflib
 import re
 import unicodedata
 from dataclasses import dataclass, field
@@ -23,7 +24,7 @@ from typing import NoReturn
 
 from evaluador.core.errors import Diagnostic, Location, Span
 from evaluador.core.language import Signature, SymbolKind
-from evaluador.core.lexer import is_variable_name
+from evaluador.core.lexer import is_identifier_name, is_variable_name
 from evaluador.core.printer import format_formula
 from evaluador.core.syntax_tree import (
     And,
@@ -238,11 +239,26 @@ class TokenMark:
 
 
 @dataclass(frozen=True, slots=True)
+class SymbolProposal:
+    """Símbolo que falta declarar para que lo dictado tenga sentido.
+
+    Se propone si, al declararlo, la frase se traduce completa (`formula`) o la traducción
+    avanza hasta otro símbolo que también falta (`formula` es None y se propondrá después).
+    """
+
+    name: str
+    kind: SymbolKind
+    arity: int  # 0 para constantes
+    formula: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class Translation:
     formula: Formula | None
     text: str | None  # fórmula escrita (paréntesis mínimos)
     marks: list[TokenMark]
     diagnostics: list[Diagnostic] = field(default_factory=list)
+    proposal: SymbolProposal | None = None
 
     @property
     def ok(self) -> bool:
@@ -253,6 +269,22 @@ class _SpeechError(Exception):
     def __init__(self, diagnostic: Diagnostic) -> None:
         super().__init__(diagnostic.message)
         self.diagnostic = diagnostic
+
+
+class _UnknownWord(_SpeechError):
+    """Palabra que no es variable ni símbolo declarado.
+
+    `expected` son los tipos de símbolo que encajarían ahí: con argumentos, un predicado al
+    inicio de una fórmula atómica (o una función, si es una ecuación) y una función dentro de
+    un término; sin argumentos, una constante.
+    """
+
+    def __init__(
+        self, diagnostic: Diagnostic, index: int, expected: tuple[SymbolKind, ...]
+    ) -> None:
+        super().__init__(diagnostic)
+        self.index = index
+        self.expected = expected  # en orden de preferencia
 
 
 def translate(transcript: str, signature: Signature) -> Translation:
@@ -268,9 +300,136 @@ def translate(transcript: str, signature: Signature) -> Translation:
         return Translation(None, None, [], [diagnostic])
     try:
         formula = parser.parse()
+    except _UnknownWord as error:
+        token = tokens[error.index]
+        proposal = _propose(transcript, signature, token, error.expected)
+        kind = proposal.kind if proposal else error.expected[0]
+        message = _unknown_message(tokens, error.index, signature, kind, proposal)
+        diagnostic = Diagnostic("E-SPK-001", message, error.diagnostic.location)
+        return Translation(None, None, parser.marks(), [diagnostic], proposal)
     except _SpeechError as error:
         return Translation(None, None, parser.marks(), [error.diagnostic])
     return Translation(formula, format_formula(formula), parser.marks())
+
+
+# ------------------------------------------------------------------ símbolos sin declarar
+
+_KIND_PLURAL = {
+    SymbolKind.CONSTANT: "Las constantes declaradas son",
+    SymbolKind.FUNCTION: "Los símbolos funcionales declarados son",
+    SymbolKind.PREDICATE: "Los predicados declarados son",
+}
+_KIND_NONE_OF = {
+    SymbolKind.CONSTANT: "ninguna constante",
+    SymbolKind.FUNCTION: "ningún símbolo funcional",
+    SymbolKind.PREDICATE: "ningún predicado",
+}
+_KIND_NONE = {
+    SymbolKind.CONSTANT: "No hay constantes declaradas.",
+    SymbolKind.FUNCTION: "No hay símbolos funcionales declarados.",
+    SymbolKind.PREDICATE: "No hay predicados declarados.",
+}
+_MAX_PROPOSED_ARITY = 4
+
+
+def _spanish_list(items: list[str]) -> str:
+    return items[0] if len(items) == 1 else f"{', '.join(items[:-1])} y {items[-1]}"
+
+
+def _declared(signature: Signature, kind: SymbolKind) -> list[str]:
+    return [name for name in signature.all_names() if signature.kind_of(name) is kind]
+
+
+def _unknown_message(
+    tokens: list[SpokenToken],
+    index: int,
+    signature: Signature,
+    kind: SymbolKind,
+    proposal: SymbolProposal | None,
+) -> str:
+    """Explica qué falta: qué se esperaba, qué símbolos existen y cuál se parece."""
+    token = tokens[index]
+    name = proposal.name if proposal else (_proposed_name(token, kind) or token.text)
+    parts = [f"«{token.text}» no es un símbolo del lenguaje: no hay {_KIND_NONE_OF[kind]} {name}."]
+    declared = _declared(signature, kind)
+    if declared:
+        parts.append(f"{_KIND_PLURAL[kind]} {_spanish_list(declared)}.")
+    else:
+        parts.append(_KIND_NONE[kind])
+    similar = _similar(tokens, index, signature.all_names())
+    if similar:
+        parts.append(f"¿Quisiste decir «{similar}»?")
+    return " ".join(parts)
+
+
+def _similar(tokens: list[SpokenToken], index: int, declared: list[str]) -> str | None:
+    """Símbolo declarado que se parece a lo dicho; prueba también juntando las palabras
+    siguientes ("is evn" → isEven). Solo nombres de más de una letra: entre letras sueltas
+    cualquier par se "parece"."""
+    simple = {_simplify(d): d for d in declared if len(d) > 1}
+    spoken = ""
+    for token in tokens[index : index + 3]:
+        if token.word is not None:
+            break
+        spoken += _simplify(token.text)
+        close = difflib.get_close_matches(spoken, list(simple), n=1, cutoff=0.75)
+        if close:
+            return simple[close[0]]
+    return None
+
+
+def _proposed_name(token: SpokenToken, kind: SymbolKind) -> str | None:
+    """Nombre para declarar: una letra dicha por su nombre ("cu" → Q); los predicados de
+    una letra van en mayúscula y las funciones y constantes en minúscula, como en el curso."""
+    if not token.names:
+        return None
+    base = token.names[-1]
+    if len(base) == 1:
+        base = base.upper() if kind is SymbolKind.PREDICATE else base.lower()
+    return base if is_identifier_name(base) else None
+
+
+def _extended(signature: Signature, name: str, kind: SymbolKind, arity: int) -> Signature:
+    if kind is SymbolKind.CONSTANT:
+        return Signature(signature.constants | {name}, signature.functions, signature.predicates)
+    if kind is SymbolKind.FUNCTION:
+        return Signature(
+            signature.constants, {**signature.functions, name: arity}, signature.predicates
+        )
+    return Signature(
+        signature.constants, signature.functions, {**signature.predicates, name: arity}
+    )
+
+
+def _propose(
+    transcript: str, signature: Signature, token: SpokenToken, kinds: tuple[SymbolKind, ...]
+) -> SymbolProposal | None:
+    """Prueba a declarar la palabra con cada tipo posible (y aridad 1, 2, …) y propone lo
+    primero que deja la frase completa traducida."""
+    index = tokenize(transcript).index(token)
+    partial: SymbolProposal | None = None
+    for kind in kinds:
+        name = _proposed_name(token, kind)
+        if name is None or signature.kind_of(name) is not None:
+            continue
+        arities = [0] if kind is SymbolKind.CONSTANT else range(1, _MAX_PROPOSED_ARITY + 1)
+        for arity in arities:
+            formula, unknown_at = _parse_only(transcript, _extended(signature, name, kind, arity))
+            if formula is not None:
+                return SymbolProposal(name, kind, arity, format_formula(formula))
+            if partial is None and unknown_at is not None and unknown_at > index:
+                partial = SymbolProposal(name, kind, arity, None)
+    return partial
+
+
+def _parse_only(transcript: str, signature: Signature) -> tuple[Formula | None, int | None]:
+    """(fórmula, None) si se traduce; (None, posición) si falla en otra palabra desconocida."""
+    try:
+        return _SpeechParser(tokenize(transcript), signature).parse(), None
+    except _UnknownWord as error:
+        return None, error.index
+    except _SpeechError:
+        return None, None
 
 
 # ------------------------------------------------------------------ parser
@@ -497,7 +656,7 @@ class _SpeechParser:
             self.take(Role.SYMBOL, name, size)
             return Pred(name, self.parse_arguments(self.signature.predicates[name]))
 
-        left = self.parse_term()
+        left = self.parse_term(atom=True)
         if self.at(Word.EQ, Word.NEQ):
             negated = self.keyword() is Word.NEQ
             equation = Eq(left, self.parse_term())
@@ -519,7 +678,8 @@ class _SpeechParser:
             self.keyword()
         return tuple(args)
 
-    def parse_term(self) -> Term:
+    def parse_term(self, *, atom: bool = False) -> Term:
+        """Un término; con `atom` se está al inicio de una fórmula atómica."""
         token = self.peek()
         if token is None:
             self.expected("un término (variable, constante o función)")
@@ -540,11 +700,18 @@ class _SpeechParser:
                 "E-SPK-003",
                 f"«{token.text}» es el predicado {predicate[0]}; aquí se esperaba un término.",
             )
-        self.fail(
-            "E-SPK-001",
-            f"No se reconoce «{token.text}»: no es una variable (u, v, w, x, y, z) ni un "
-            "símbolo declarado en el lenguaje.",
+        with_arguments = self.at(Word.OF, Word.LPAREN, offset=1)
+        expected: tuple[SymbolKind, ...]
+        if not with_arguments:
+            expected = (SymbolKind.CONSTANT,)
+        elif atom:
+            expected = (SymbolKind.PREDICATE, SymbolKind.FUNCTION)
+        else:
+            expected = (SymbolKind.FUNCTION,)
+        diagnostic = Diagnostic(
+            "E-SPK-001", f"No se reconoce «{token.text}».", Location("speech", token.span)
         )
+        raise _UnknownWord(diagnostic, self.pos, expected)
 
 
 _SUBSCRIPTS = str.maketrans("₀₁₂₃₄₅₆₇₈₉", "0123456789")
@@ -563,6 +730,7 @@ class Command(StrEnum):
     ACCEPT = "aceptar"
     EVALUATE = "evaluar"
     CANCEL = "cancelar"
+    DECLARE = "declarar"
 
 
 _COMMANDS: dict[str, Command] = {
@@ -582,6 +750,10 @@ _COMMANDS: dict[str, Command] = {
     "evalua la formula": Command.EVALUATE,
     "cancelar": Command.CANCEL,
     "cancela": Command.CANCEL,
+    "declara": Command.DECLARE,
+    "declarar": Command.DECLARE,
+    "declaralo": Command.DECLARE,
+    "declara el simbolo": Command.DECLARE,
 }
 
 

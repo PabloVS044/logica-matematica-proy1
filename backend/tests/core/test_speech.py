@@ -1,9 +1,17 @@
 import pytest
 from hypothesis import given, settings
 
-from evaluador.core.language import Signature
+from evaluador.core.language import Signature, SymbolKind
 from evaluador.core.parser import parse
-from evaluador.core.speech import Command, Role, detect_command, normalize, tokenize, translate
+from evaluador.core.speech import (
+    Command,
+    Role,
+    SymbolProposal,
+    detect_command,
+    normalize,
+    tokenize,
+    translate,
+)
 from evaluador.core.syntax_tree import Formula
 from evaluador.core.verbalize import verbalize
 
@@ -129,6 +137,8 @@ def test_normalize() -> None:
         ("Listo", Command.ACCEPT),
         ("evalúa", Command.EVALUATE),
         ("cancelar", Command.CANCEL),
+        ("Declara", Command.DECLARE),
+        ("declaralo", Command.DECLARE),
         ("para todo x P de x", None),
         ("listo para todo", None),
     ],
@@ -166,3 +176,72 @@ def test_course_formulas_round_trip(signature: Signature) -> None:
         formula = parse(text)
         assert translate(verbalize(formula), signature).formula == formula
         assert translate(verbalize(formula, spell=True), signature).formula == formula
+
+
+# ------------------------------------------------------------------ símbolos sin declarar
+
+# Sin Q: lo que se dicte con «q» o «cu» falta declararlo.
+_WITHOUT_Q = make_signature(["i", "zero"], {"f": 1, "plus": 2}, {"P": 1, "R": 2, "isEven": 1})
+
+
+@pytest.mark.parametrize(
+    ("transcript", "name", "kind", "arity", "formula"),
+    [
+        (
+            "para todo x tal que P de x implica q de x",
+            "Q",
+            SymbolKind.PREDICATE,
+            1,
+            "∀x (P(x) → Q(x))",
+        ),
+        ("cu de x coma i", "Q", SymbolKind.PREDICATE, 2, "Q(x, i)"),
+        ("R de x coma ge de x", "g", SymbolKind.FUNCTION, 1, "R(x, g(x))"),
+        ("g de x coma y es igual a i", "g", SymbolKind.FUNCTION, 2, "g(x, y) = i"),
+        ("P de pato", "pato", SymbolKind.CONSTANT, 0, "P(pato)"),
+        ("x es igual a eme", "m", SymbolKind.CONSTANT, 0, "x = m"),
+    ],
+)
+def test_proposes_missing_symbol(
+    transcript: str, name: str, kind: SymbolKind, arity: int, formula: str
+) -> None:
+    result = translate(transcript, _WITHOUT_Q)
+    assert not result.ok
+    assert result.proposal == SymbolProposal(name, kind, arity, formula)
+
+
+def test_no_proposal_if_the_rest_still_fails() -> None:
+    # Declarar Q no evita el error de sintaxis que sigue ("de x" sobra).
+    assert translate("q de x y z de x", _WITHOUT_Q).proposal is None
+
+
+def test_proposals_chain_when_several_symbols_are_missing() -> None:
+    empty = make_signature()
+    first = translate("para todo x tal que p de x implica q de x", empty)
+    assert first.proposal == SymbolProposal("P", SymbolKind.PREDICATE, 1, None)
+    with_p = make_signature(predicates={"P": 1})
+    second = translate("para todo x tal que p de x implica q de x", with_p)
+    assert second.proposal == SymbolProposal("Q", SymbolKind.PREDICATE, 1, "∀x (P(x) → Q(x))")
+
+
+def test_no_proposal_for_a_name_declared_with_another_kind() -> None:
+    # i es una constante: no se propone otro símbolo llamado i.
+    assert translate("i de x", _WITHOUT_Q).proposal is None
+
+
+def test_unknown_message_lists_declared_symbols() -> None:
+    (diagnostic,) = translate("P de x implica q de x", _WITHOUT_Q).diagnostics
+    assert diagnostic.code == "E-SPK-001"
+    assert diagnostic.message == (
+        "«q» no es un símbolo del lenguaje: no hay ningún predicado Q. "
+        "Los predicados declarados son P, R y isEven."
+    )
+
+
+def test_unknown_message_suggests_similar_name() -> None:
+    (diagnostic,) = translate("P de x y is evn de x", _WITHOUT_Q).diagnostics
+    assert diagnostic.message.endswith("¿Quisiste decir «isEven»?")
+
+
+def test_unknown_message_without_declared_symbols() -> None:
+    (diagnostic,) = translate("P de x", make_signature()).diagnostics
+    assert "No hay predicados declarados." in diagnostic.message
