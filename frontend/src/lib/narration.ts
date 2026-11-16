@@ -23,9 +23,34 @@ export interface PredicateShapes {
 const yesNo = (value: boolean) => (value ? 'Sí' : 'No')
 const truth = (value: boolean) => (value ? 'verdadera' : 'falsa')
 
+/** Nombre hablado de una variable: "y" se lee «i griega» para no confundirla con «y». */
+const VARIABLE_NAMES: Record<string, string> = {
+  u: 'u',
+  v: 'uve',
+  w: 'doble ve',
+  x: 'equis',
+  y: 'i griega',
+  z: 'zeta',
+}
+export function spokenVariable(name: string): string {
+  const spoken = VARIABLE_NAMES[name[0]]
+  return spoken ? `${spoken}${name.length > 1 ? ` ${name.slice(1)}` : ''}` : name
+}
+
+/** "x = a" escrito; «equis vale a» hablado. */
+function binding(variable: string | undefined, value: string | undefined, voice: boolean): string {
+  return voice ? `${spokenVariable(variable ?? '')} vale ${value}` : `${variable} = ${value}`
+}
+
+/** Cómo se escribe una subfórmula: con símbolos, o en español para leerla en voz alta. */
+type Text = (node: ExplainNode) => string
+const written: Text = (node) => node.formula
+const spoken: Text = (node) => node.spoken || node.formula
+
 /** Cuerpo de un cuantificador o de una negación: el texto de su único hijo. */
-function body(node: ExplainNode): string {
-  return node.children[0]?.formula ?? node.formula.replace(/^(¬|[∀∃]\s*\w+)\s*/, '')
+function body(node: ExplainNode, t: Text): string {
+  const child = node.children[0]
+  return child ? t(child) : node.formula.replace(/^(¬|[∀∃]\s*\w+)\s*/, '')
 }
 
 function atomQuestion(node: ExplainNode, shapes: PredicateShapes): string {
@@ -56,63 +81,64 @@ function functionSteps(node: ExplainNode): string[] {
     })
 }
 
-function visit(node: ExplainNode, shapes: PredicateShapes): Narration {
+function visit(node: ExplainNode, shapes: PredicateShapes, t: Text): Narration {
   if (node.atom) {
     const computed = functionSteps(node)
     return {
       title: atomQuestion(node, shapes),
       detail:
         (computed.length ? `Primero se calculan los términos: ${computed.join(', ')}. ` : '') +
-        `Así que ${node.formula} es ${truth(node.value)}.`,
+        `Así que ${t(node)} es ${truth(node.value)}.`,
       value: node.value,
     }
   }
   switch (node.rule) {
     case 'universal':
       return {
-        title: `¿Todos los elementos cumplen ${body(node)}?`,
+        title: `¿Todos los elementos cumplen ${body(node, t)}?`,
         detail: 'Para que sea verdadera, TODOS deben cumplir. Se revisan uno por uno.',
         value: null,
       }
     case 'existencial':
       return {
-        title: `¿Algún elemento cumple ${body(node)}?`,
+        title: `¿Algún elemento cumple ${body(node, t)}?`,
         detail: 'Basta con encontrar UNO que cumpla (un testigo).',
         value: null,
       }
     case 'negación':
       return {
-        title: `${node.formula} significa «no ${body(node)}».`,
-        detail: `Primero vemos si ${body(node)} es verdadera; el resultado se invierte.`,
+        title: `${t(node)} significa «no ${body(node, t)}».`,
+        detail: `Primero vemos si ${body(node, t)} es verdadera; el resultado se invierte.`,
         value: null,
       }
     case 'conjunción':
       return {
-        title: `${node.formula}: las dos partes deben ser verdaderas.`,
+        title: `${t(node)}: las dos partes deben ser verdaderas.`,
         detail: 'Si la primera es falsa, ya no hace falta mirar la segunda.',
         value: null,
       }
     case 'disyunción':
       return {
-        title: `${node.formula}: basta con que una parte sea verdadera.`,
+        title: `${t(node)}: basta con que una parte sea verdadera.`,
         detail: 'Si la primera es verdadera, ya no hace falta mirar la segunda.',
         value: null,
       }
     case 'implicación':
       return {
-        title: `${node.formula}: «si … entonces …».`,
+        title: `${t(node)}: «si … entonces …».`,
         detail: 'Solo es falsa cuando la condición es verdadera y la conclusión falsa.',
         value: null,
       }
     default:
-      return { title: node.formula, detail: null, value: null }
+      return { title: t(node), detail: null, value: null }
   }
 }
 
-function conclude(node: ExplainNode, step: Step): Narration {
+function conclude(node: ExplainNode, step: Step, t: Text): Narration {
+  const voice = t === spoken
   const [left, right] = node.children
   const value = node.value
-  const result = `${node.formula} es ${value ? 'VERDADERA' : 'FALSA'}.`
+  const result = `${t(node)} es ${value ? 'VERDADERA' : 'FALSA'}.`
   const count = node.children.filter((c) => c.binding).length
   switch (node.rule) {
     case 'universal':
@@ -123,14 +149,14 @@ function conclude(node: ExplainNode, step: Step): Narration {
             value,
           }
         : {
-            title: `${step.focus?.var} = ${step.focus?.value} no cumple: es un contraejemplo.`,
+            title: `${binding(step.focus?.var, step.focus?.value, voice)} no cumple: es un contraejemplo.`,
             detail: `Con un solo elemento que falle basta: ${result}`,
             value,
           }
     case 'existencial':
       return value
         ? {
-            title: `${step.focus?.var} = ${step.focus?.value} cumple: es un testigo.`,
+            title: `${binding(step.focus?.var, step.focus?.value, voice)} cumple: es un testigo.`,
             detail: `Con uno basta: ${result}`,
             value,
           }
@@ -141,7 +167,7 @@ function conclude(node: ExplainNode, step: Step): Narration {
           }
     case 'negación':
       return {
-        title: `${left.formula} es ${truth(left.value)}, así que su negación es ${truth(value)}.`,
+        title: `${t(left)} es ${truth(left.value)}, así que su negación es ${truth(value)}.`,
         detail: result,
         value,
       }
@@ -149,14 +175,14 @@ function conclude(node: ExplainNode, step: Step): Narration {
       return {
         title: value
           ? 'Las dos partes son verdaderas.'
-          : `${!left.value ? left.formula : right.formula} es falsa.`,
+          : `${t(!left.value ? left : right)} es falsa.`,
         detail: value ? result : `Basta una parte falsa: ${result}`,
         value,
       }
     case 'disyunción':
       return {
         title: value
-          ? `${left.value ? left.formula : right.formula} es verdadera.`
+          ? `${t(left.value ? left : right)} es verdadera.`
           : 'Las dos partes son falsas.',
         detail: value ? `Basta una parte verdadera: ${result}` : result,
         value,
@@ -164,10 +190,10 @@ function conclude(node: ExplainNode, step: Step): Narration {
     case 'implicación':
       return {
         title: !left.value
-          ? `La condición ${left.formula} es falsa: no hay nada que cumplir.`
+          ? `La condición ${t(left)} es falsa: no hay nada que cumplir.`
           : right.value
-            ? `La condición se cumple y la conclusión ${right.formula} también.`
-            : `La condición ${left.formula} se cumple, pero ${right.formula} no.`,
+            ? `La condición se cumple y la conclusión ${t(right)} también.`
+            : `La condición ${t(left)} se cumple, pero ${t(right)} no.`,
         detail: result,
         value,
       }
@@ -176,12 +202,21 @@ function conclude(node: ExplainNode, step: Step): Narration {
   }
 }
 
-export function narrate(step: Step, shapes: PredicateShapes): Narration {
+/**
+ * Narración de un paso. Con `voice` las fórmulas van en español ("para todo equis …")
+ * para que un sintetizador de voz pueda leerlas.
+ */
+export function narrate(
+  step: Step,
+  shapes: PredicateShapes,
+  { voice = false }: { voice?: boolean } = {},
+): Narration {
   const { node } = step
-  const narration = step.phase === 'visit' ? visit(node, shapes) : conclude(node, step)
+  const t = voice ? spoken : written
+  const narration = step.phase === 'visit' ? visit(node, shapes, t) : conclude(node, step, t)
   // Al entrar a un caso de un cuantificador se dice qué elemento se prueba.
   if (step.phase === 'visit' && node.binding) {
-    return { ...narration, title: `Probamos ${node.binding.var} = ${node.binding.value}. ${narration.title}` }
+    return { ...narration, title: `Probamos ${binding(node.binding.var, node.binding.value, voice)}. ${narration.title}` }
   }
   if (step.phase === 'conclude' && step.depth === 0) {
     return { ...narration, detail: `Resultado final. ${narration.detail ?? ''}`.trim() }

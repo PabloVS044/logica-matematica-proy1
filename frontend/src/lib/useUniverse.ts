@@ -99,7 +99,16 @@ export interface Player {
 }
 
 /** Animación de una evaluación: cada evaluación nueva empieza desde el primer paso. */
-export function usePlayer(root: ExplainNode | null, playKey: string, autoplay: boolean): Player {
+/** Pausa breve entre pasos cuando la narración se lee en voz alta. */
+const SPOKEN_GAP = 450
+
+export function usePlayer(
+  root: ExplainNode | null,
+  playKey: string,
+  autoplay: boolean,
+  /** Si se narra en voz alta: el paso no avanza mientras `speaking` sea verdadero. */
+  voice: { narrating: boolean; speaking: boolean } = { narrating: false, speaking: false },
+): Player {
   const [mode, setMode] = useState<TimelineMode>('natural')
   const timeline = useMemo(() => (root ? buildTimeline(root, { mode }) : null), [root, mode])
   const key = root ? `${playKey}|${mode}` : null
@@ -114,14 +123,14 @@ export function usePlayer(root: ExplainNode | null, playKey: string, autoplay: b
   // Al llegar al último paso la reproducción termina sola.
   const playing = state.playing && index < last
 
+  const { narrating, speaking } = voice
   useEffect(() => {
-    if (!playing || !step) return
-    const timer = setTimeout(
-      () => setState((s) => ({ ...s, index: s.index + 1 })),
-      stepDuration(step) / speed,
-    )
+    if (!playing || !step || speaking) return
+    // Narrando, se avanza al terminar de hablar; si no, cada paso dura según su tipo.
+    const delay = narrating ? SPOKEN_GAP : stepDuration(step) / speed
+    const timer = setTimeout(() => setState((s) => ({ ...s, index: s.index + 1 })), delay)
     return () => clearTimeout(timer)
-  }, [playing, step, speed])
+  }, [playing, step, speed, narrating, speaking])
 
   return {
     timeline,
