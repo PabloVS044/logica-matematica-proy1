@@ -16,6 +16,8 @@ from evaluador.api.mappers import (
     to_raw_interpretation,
 )
 from evaluador.api.schemas import (
+    CommandIn,
+    CommandOut,
     DiagnosticsOut,
     EvaluationOut,
     ExampleOut,
@@ -29,6 +31,9 @@ from evaluador.api.schemas import (
     InterpretationRequest,
     LanguageIn,
     ProjectIn,
+    SpeechIn,
+    SpeechMarkOut,
+    SpeechTranslationOut,
 )
 from evaluador.core.analysis import analyze_formula
 from evaluador.core.errors import Span, has_errors
@@ -43,6 +48,10 @@ from evaluador.core.game import (
 )
 from evaluador.core.interpretation import build_interpretation
 from evaluador.core.language import build_signature
+from evaluador.core.printer import format_formula
+from evaluador.core.speech import detect_command, translate
+from evaluador.core.spoken import spoken_verdict
+from evaluador.core.verbalize import verbalize
 
 # Límite de nodos de la explicación enviada al navegador (el valor siempre es exacto).
 API_NODE_BUDGET = 10_000
@@ -76,6 +85,7 @@ def analyze(request: FormulaIn) -> FormulaAnalysisOut:
         free_vars=analysis.free_vars,
         occurrences=[occurrence_out(o) for o in analysis.occurrences],
         syntax_tree=syntax_tree_out(analysis.formula) if analysis.formula else None,
+        spoken=verbalize(analysis.formula, spell=True) if analysis.formula else None,
     )
 
 
@@ -117,12 +127,47 @@ def evaluate_project(project: ProjectIn) -> EvaluationOut:
         diagnostics=diagnostics,
         value=result.value,
         summary=explanation.summary,
+        spoken_summary=spoken_verdict(explanation.root),
         explanation=explanation_out(explanation.root),
         truncated=explanation.truncated,
         node_count=explanation.node_count,
         free_vars=list(result.free_vars),
         parenthesized=result.parenthesized,
     )
+
+
+@router.post("/speech/translate")
+def speech_translate(request: SpeechIn) -> SpeechTranslationOut:
+    """Traduce una transcripción en español hablado a una fórmula del lenguaje."""
+    language = build_signature(*to_declarations(request.language))
+    if language.signature is None:
+        return SpeechTranslationOut(ok=False, diagnostics=diagnostics_out(language.diagnostics))
+    result = translate(request.transcript, language.signature)
+    marks = [
+        SpeechMarkOut(
+            text=m.text, start=m.span.start, end=m.span.end, role=m.role.value, meaning=m.meaning
+        )
+        for m in result.marks
+    ]
+    if result.formula is None:
+        return SpeechTranslationOut(
+            ok=False, diagnostics=diagnostics_out(result.diagnostics), marks=marks
+        )
+    return SpeechTranslationOut(
+        ok=True,
+        diagnostics=[],
+        formula=result.text,
+        parenthesized=format_formula(result.formula, full_parens=True),
+        spoken=verbalize(result.formula, spell=True),
+        marks=marks,
+    )
+
+
+@router.post("/speech/command")
+def speech_command(request: CommandIn) -> CommandOut:
+    """Reconoce comandos de voz: "borra eso", "borra todo", "listo", "evaluar", "cancelar"."""
+    command = detect_command(request.utterance)
+    return CommandOut(command=command.value if command else None)
 
 
 @router.get("/examples")

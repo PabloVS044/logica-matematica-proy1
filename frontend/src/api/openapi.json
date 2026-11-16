@@ -176,6 +176,84 @@
         }
       }
     },
+    "/api/speech/translate": {
+      "post": {
+        "summary": "Speech Translate",
+        "description": "Traduce una transcripción en español hablado a una fórmula del lenguaje.",
+        "operationId": "speech_translate_api_speech_translate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpeechIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpeechTranslationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/speech/command": {
+      "post": {
+        "summary": "Speech Command",
+        "description": "Reconoce comandos de voz: \"borra eso\", \"borra todo\", \"listo\", \"evaluar\", \"cancelar\".",
+        "operationId": "speech_command_api_speech_command_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/examples": {
       "get": {
         "summary": "List Examples",
@@ -356,6 +434,46 @@
         ],
         "title": "BindingOut"
       },
+      "CommandIn": {
+        "properties": {
+          "utterance": {
+            "type": "string",
+            "title": "Utterance"
+          }
+        },
+        "type": "object",
+        "required": [
+          "utterance"
+        ],
+        "title": "CommandIn"
+      },
+      "CommandOut": {
+        "properties": {
+          "command": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "borrar",
+                  "vaciar",
+                  "aceptar",
+                  "evaluar",
+                  "cancelar"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Command"
+          }
+        },
+        "type": "object",
+        "required": [
+          "command"
+        ],
+        "title": "CommandOut"
+      },
       "DiagnosticOut": {
         "properties": {
           "code": {
@@ -443,6 +561,17 @@
             ],
             "title": "Summary"
           },
+          "spoken_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spoken Summary"
+          },
           "explanation": {
             "anyOf": [
               {
@@ -488,6 +617,7 @@
           "diagnostics",
           "value",
           "summary",
+          "spoken_summary",
           "explanation",
           "truncated",
           "node_count",
@@ -622,6 +752,10 @@
               }
             ]
           },
+          "spoken": {
+            "type": "string",
+            "title": "Spoken"
+          },
           "pruned": {
             "type": "boolean",
             "title": "Pruned",
@@ -651,6 +785,7 @@
           "binding",
           "computations",
           "atom",
+          "spoken",
           "pruned",
           "children"
         ],
@@ -703,6 +838,17 @@
                 "type": "null"
               }
             ]
+          },
+          "spoken": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spoken"
           }
         },
         "type": "object",
@@ -712,7 +858,8 @@
           "parenthesized",
           "free_vars",
           "occurrences",
-          "syntax_tree"
+          "syntax_tree",
+          "spoken"
         ],
         "title": "FormulaAnalysisOut"
       },
@@ -1241,6 +1388,128 @@
         "type": "object",
         "title": "ProjectIn",
         "description": "Proyecto completo: también es el formato para guardar y cargar."
+      },
+      "SpeechIn": {
+        "properties": {
+          "language": {
+            "$ref": "#/components/schemas/LanguageIn"
+          },
+          "transcript": {
+            "type": "string",
+            "title": "Transcript"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "transcript"
+        ],
+        "title": "SpeechIn"
+      },
+      "SpeechMarkOut": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "start": {
+            "type": "integer",
+            "title": "Start"
+          },
+          "end": {
+            "type": "integer",
+            "title": "End"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "palabra clave",
+              "símbolo",
+              "variable",
+              "desconocida"
+            ],
+            "title": "Role"
+          },
+          "meaning": {
+            "type": "string",
+            "title": "Meaning"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "start",
+          "end",
+          "role",
+          "meaning"
+        ],
+        "title": "SpeechMarkOut",
+        "description": "Cómo se interpretó una palabra de la transcripción."
+      },
+      "SpeechTranslationOut": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/DiagnosticOut"
+            },
+            "type": "array",
+            "title": "Diagnostics"
+          },
+          "formula": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Formula"
+          },
+          "parenthesized": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parenthesized"
+          },
+          "spoken": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spoken"
+          },
+          "marks": {
+            "items": {
+              "$ref": "#/components/schemas/SpeechMarkOut"
+            },
+            "type": "array",
+            "title": "Marks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok",
+          "diagnostics",
+          "formula",
+          "parenthesized",
+          "spoken",
+          "marks"
+        ],
+        "title": "SpeechTranslationOut"
       },
       "SymbolDeclIn": {
         "properties": {
