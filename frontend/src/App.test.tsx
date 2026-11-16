@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -20,12 +20,45 @@ afterEach(() => {
 })
 
 describe('App', () => {
-  it('muestra las secciones principales', () => {
+  it('muestra la fórmula y abre cada sección de la configuración en un modal', async () => {
     mockApi({ '/examples': [], '/language/validate': { ok: true, diagnostics: [] } })
     render(<App />)
-    for (const name of ['Lenguaje', 'Interpretación ℐ', 'Fórmula', 'Entorno', 'Resultado']) {
-      expect(screen.getByRole('heading', { name })).toBeInTheDocument()
+    expect(screen.getByLabelText('Fórmula')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    const nav = screen.getByRole('navigation', { name: 'Configuración' })
+    for (const [button, heading] of [
+      ['Lenguaje', 'Lenguaje'],
+      ['Interpretación', 'Interpretación ℐ'],
+      ['Entorno', 'Entorno'],
+    ]) {
+      await userEvent.click(within(nav).getByRole('button', { name: new RegExp(`^${button}`) }))
+      const dialog = screen.getByRole('dialog', { name: 'Configuración' })
+      expect(within(dialog).getByRole('heading', { name: heading })).toBeInTheDocument()
+      expect(within(dialog).getByRole('tab', { name: new RegExp(`^${button}`) })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      )
     }
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('con el dominio vacío invita a cargar un ejemplo', async () => {
+    mockApi({
+      '/examples': [
+        {
+          id: 'e1',
+          title: 'Ejemplo uno',
+          description: 'Descripción.',
+          project: { version: 1, formula: '∀x P(x)', interpretation: { domain: ['1', '2'] } },
+        },
+      ],
+    })
+    render(<App />)
+    expect(screen.getByText('Tu universo está vacío')).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: /Ejemplo uno/ }))
+    expect(useProjectStore.getState().project.domain).toEqual(['1', '2'])
+    expect(screen.getByRole('status')).toHaveTextContent('Se cargó el ejemplo "Ejemplo uno"')
   })
 
   it('envía el proyecto al evaluar y muestra el resultado', async () => {

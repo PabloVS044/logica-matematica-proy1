@@ -14,7 +14,8 @@ export function ResultPanel({
   error: string | null
   pending: boolean
   stale: boolean
-  onEvaluate: () => void
+  /** Sin él no se muestra el botón (en el panel lateral se evalúa desde el dock). */
+  onEvaluate?: () => void
 }) {
   const errors: Diagnostic[] = evaluation?.diagnostics.filter((d) => d.severity === 'error') ?? []
   const warnings: Diagnostic[] =
@@ -24,9 +25,11 @@ export function ResultPanel({
     <Section
       title="Resultado"
       aside={
-        <Button variant="primary" onClick={onEvaluate} disabled={pending}>
-          {pending ? 'Evaluando…' : 'Evaluar'}
-        </Button>
+        onEvaluate && (
+          <Button variant="primary" onClick={onEvaluate} disabled={pending}>
+            {pending ? 'Evaluando…' : 'Evaluar'}
+          </Button>
+        )
       }
     >
       {error && <p className="text-false">{error}</p>}

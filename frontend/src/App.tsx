@@ -1,23 +1,53 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
-import { api, ApiError, type Evaluation } from './api/client'
+import { api, ApiError, type Diagnostic, type Evaluation, type Example } from './api/client'
 import { EnvironmentPanel } from './components/EnvironmentPanel'
 import { FormulaEditor } from './components/FormulaEditor'
-import { Header } from './components/Header'
+import { Header, StatusDot } from './components/Header'
 import { InterpretationPanel } from './components/InterpretationPanel'
 import { LanguagePanel } from './components/LanguagePanel'
 import { ResultPanel } from './components/ResultPanel'
-import { toInterpretation, toLanguage, toProjectIn } from './lib/project'
+import { floating, Modal } from './components/ui'
+import {
+  ElementCard,
+  Legend,
+  MachineLegend,
+  MachineStage,
+  PlaybackControls,
+  StoryCard,
+  UniverseStage,
+  ViewToggle,
+  type View,
+} from './components/Universe'
+import { CONFIG_TABS, type ConfigStatus, type ConfigTab } from './lib/config'
+import { buildMachine, machineState } from './lib/machine'
+import { fromProjectIn, toInterpretation, toLanguage, toProjectIn } from './lib/project'
+import { MAX_DRAWN_ELEMENTS, quantifierProgress } from './lib/universe'
+import { useExamples } from './lib/useExamples'
 import { useLiveRequest } from './lib/useLiveRequest'
 import { useTheme } from './lib/useTheme'
+import {
+  hasWebGL,
+  usePlayer,
+  useReducedMotion,
+  useUniverseLayers,
+} from './lib/useUniverse'
 import { useProject, useProjectStore } from './store/projectStore'
+
+const hasErrors = (diagnostics: readonly Diagnostic[] | undefined) =>
+  (diagnostics ?? []).some((d) => d.severity === 'error')
 
 export default function App() {
   const project = useProject()
   const update = useProjectStore((s) => s.update)
+  const load = useProjectStore((s) => s.load)
   const [theme, toggleTheme] = useTheme()
   const [message, setMessage] = useState<string | null>(null)
+  const examples = useExamples()
+  const reducedMotion = useReducedMotion()
+  const [webgl] = useState(hasWebGL)
 
+  // ---------------------------------------------------------------- validación en vivo
   const language = toLanguage(project)
   const languageCheck = useLiveRequest(language, api.validateLanguage)
   const interpretationCheck = useLiveRequest(
@@ -34,6 +64,7 @@ export default function App() {
   const analysisData = hasFormula ? analysis.data : null
   const freeVars = analysisData?.free_vars ?? []
 
+  // ---------------------------------------------------------------- evaluación
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null)
   const [evaluatedKey, setEvaluatedKey] = useState<string | null>(null)
   const [evaluationError, setEvaluationError] = useState<string | null>(null)
@@ -60,53 +91,402 @@ export default function App() {
       ? evaluation.diagnostics.filter((d) => d.location.kind === 'environment')
       : []
 
+  // ---------------------------------------------------------------- ventanas
+  const [configTab, setConfigTab] = useState<ConfigTab | null>(null)
+  const [showDetails, setShowDetails] = useState(false)
+
+  const languageInvalid = languageCheck.data?.ok === false
+  const unassigned = freeVars.filter((v) => !project.domain.includes(project.environment[v] ?? ''))
+  const status: ConfigStatus = {
+    lenguaje: hasErrors(languageCheck.data?.diagnostics) ? 'error' : 'ok',
+    interpretacion:
+      !languageInvalid && hasErrors(interpretationCheck.data?.diagnostics)
+        ? 'error'
+        : project.domain.length === 0
+          ? 'pending'
+          : 'ok',
+    entorno: hasErrors(environmentDiagnostics)
+      ? 'error'
+      : unassigned.length > 0
+        ? 'pending'
+        : 'ok',
+  }
+
+  function loadExample(example: Example) {
+    load(fromProjectIn(example.project))
+    setMessage(`Se cargó el ejemplo "${example.title}". ${example.description}`)
+  }
+
+  // Los avisos se ocultan solos después de un rato.
+  useEffect(() => {
+    if (!message) return
+    const timer = setTimeout(() => setMessage(null), 12_000)
+    return () => clearTimeout(timer)
+  }, [message])
+
+  // ---------------------------------------------------------------- universo
+  const layers = useUniverseLayers(project)
+  const root = evaluation?.ok && !stale ? (evaluation.explanation ?? null) : null
+  const player = usePlayer(root, evaluation?.summary ?? '', !reducedMotion)
+  const [picked, setPicked] = useState<string | null>(null)
+  const selected = picked !== null && project.domain.includes(picked) ? picked : null
+  const [spin, setSpin] = useState(true)
+  const drawable = project.domain.length > 0 && project.domain.length <= MAX_DRAWN_ELEMENTS && webgl
+
+  // Marcador de cuantificadores del paso actual; el más interno pone ✓ / ✗ en la escena.
+  const progress = player.timeline ? quantifierProgress(player.timeline, player.index) : []
+  const innermost = progress.at(-1)
+  const marks = new Map<string, { var: string; ok: boolean }>()
+  for (const item of innermost?.items ?? []) {
+    if (item.status === 'cumple' || item.status === 'falla') {
+      marks.set(item.value, { var: innermost!.var, ok: item.status === 'cumple' })
+    }
+  }
+  const shapes = useMemo(
+    () => ({
+      unary: new Set(layers.unary.map((l) => l.name)),
+      binary: new Set(layers.binary.map((l) => l.name)),
+    }),
+    [layers],
+  )
+  const story = (
+    <StoryCard player={player} progress={progress} formula={project.formula} shapes={shapes} />
+  )
+
+  // ---------------------------------------------------------------- máquina
+  // Abre en la máquina; si todavía no hay una fórmula válida, se muestra el universo.
+  const [view, setView] = useState<View>('maquina')
+  const syntaxTree = analysisData?.syntax_tree ?? null
+  const machine = useMemo(() => (syntaxTree ? buildMachine(syntaxTree) : null), [syntaxTree])
+  const machineReady = machine !== null && webgl
+  const shownView: View = machineReady ? view : 'universo'
+  const showMachine = shownView === 'maquina' && machine !== null
+  const machineNow =
+    machine && player.timeline ? machineState(machine, player.timeline, player.index) : null
+  // En pantallas anchas la escena queda entre la leyenda y la narración.
+  // (en la máquina la leyenda se pliega y la escena usa también ese ancho).
+  const stageInset = `${showMachine ? '' : 'lg:left-[19rem]'} ${player.step ? 'lg:right-[27.5rem]' : ''}`
+
   return (
-    <div className="min-h-screen">
-      <Header theme={theme} onToggleTheme={toggleTheme} onMessage={setMessage} />
+    <div className="space-backdrop relative h-dvh w-full overflow-hidden">
+      {showMachine ? (
+        <MachineStage
+          machine={machine}
+          state={machineNow}
+          stepKey={player.index}
+          className={stageInset}
+        />
+      ) : drawable ? (
+        <UniverseStage
+          domain={project.domain}
+          layers={layers}
+          step={player.step}
+          stepKey={player.index}
+          selected={selected}
+          onSelect={setPicked}
+          spin={spin}
+          marks={marks}
+          className={stageInset}
+        />
+      ) : (
+        <EmptyUniverse
+          reason={
+            project.domain.length === 0
+              ? 'empty'
+              : project.domain.length > MAX_DRAWN_ELEMENTS
+                ? 'too-big'
+                : 'no-webgl'
+          }
+          size={project.domain.length}
+          examples={examples}
+          onLoadExample={loadExample}
+          onConfigure={() => setConfigTab(project.constants.length + project.predicates.length + project.functions.length > 0 ? 'interpretacion' : 'lenguaje')}
+        />
+      )}
+
+      <Header
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onMessage={setMessage}
+        examples={examples}
+        onLoadExample={loadExample}
+        onOpenConfig={setConfigTab}
+        status={status}
+        viewToggle={<ViewToggle view={shownView} onChange={setView} machineReady={machineReady} />}
+      />
+
       {message && (
-        <div role="status" className="border-b border-line bg-accent-soft">
-          <div className="mx-auto flex max-w-[1500px] items-start justify-between gap-4 px-6 py-2 text-sm">
-            <p>{message}</p>
-            <button type="button" onClick={() => setMessage(null)} className="text-muted">
-              Cerrar
-            </button>
-          </div>
+        <div
+          role="status"
+          className={`fixed top-24 left-1/2 z-30 flex w-[min(34rem,calc(100%-1.5rem))] -translate-x-1/2 items-start justify-between gap-4 px-4 py-2 text-sm ${floating}`}
+        >
+          <p>{message}</p>
+          <button type="button" onClick={() => setMessage(null)} className="text-muted">
+            Cerrar
+          </button>
         </div>
       )}
       {languageCheck.error && (
-        <p className="mx-auto max-w-[1500px] px-6 pt-3 text-false">{languageCheck.error}</p>
+        <p className={`fixed top-24 left-3 z-30 px-3 py-2 text-sm text-false ${floating}`}>
+          {languageCheck.error}
+        </p>
       )}
-      <main className="mx-auto grid max-w-[1500px] gap-x-10 px-6 py-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-        <div className="min-w-0">
-          <LanguagePanel diagnostics={languageCheck.data?.diagnostics ?? []} />
-          <InterpretationPanel
-            diagnostics={
-              languageCheck.data?.ok === false ? [] : (interpretationCheck.data?.diagnostics ?? [])
-            }
+
+      {(drawable || showMachine) && (
+        <div className={`fixed top-24 left-3 z-20 hidden space-y-2 sm:block ${showMachine ? 'max-w-72' : 'w-72'}`}>
+        <aside className={`px-4 py-3 ${floating}`} aria-label="Leyenda">
+          {showMachine ? (
+            <details>
+              <summary className="cursor-pointer text-sm font-bold select-none">
+                ¿Cómo leer la máquina?
+              </summary>
+              <div className="mt-2">
+                <MachineLegend machine={machine} />
+              </div>
+            </details>
+          ) : (
+            <Legend layers={layers} />
+          )}
+          {!showMachine && (
+          <>
+          <label className="mt-2 flex items-center gap-2 text-sm text-muted">
+            <input type="checkbox" checked={spin} onChange={(e) => setSpin(e.target.checked)} />
+            Girar solo
+          </label>
+          <p className="mt-1 text-xs text-muted">
+            Arrastra para girar, rueda para acercar, clic en un elemento para ver sus datos.
+          </p>
+          </>
+          )}
+        </aside>
+        {selected && !showMachine && (
+          <ElementCard
+            element={selected}
+            project={project}
+            layers={layers}
+            onClose={() => setPicked(null)}
           />
+        )}
         </div>
-        <div className="min-w-0 border-line lg:border-l lg:pl-10">
-          <FormulaEditor
-            value={project.formula}
-            onChange={(formula) => update((p) => ({ ...p, formula }))}
-            analysis={analysisData}
-            analysisError={hasFormula ? analysis.error : null}
-            onSubmit={evaluate}
-          />
-          <EnvironmentPanel
-            freeVars={freeVars}
-            formulaState={!hasFormula ? 'empty' : analysisData?.syntax_tree ? 'ready' : 'invalid'}
-            diagnostics={environmentDiagnostics}
-          />
-          <ResultPanel
-            evaluation={evaluation}
-            error={evaluationError}
-            pending={pending}
-            stale={stale}
-            onEvaluate={evaluate}
-          />
+      )}
+
+      {player.step && (
+        <div className="fixed top-24 right-3 z-20 hidden max-h-[calc(100dvh-8rem)] w-[26rem] overflow-y-auto lg:block">
+          {story}
         </div>
-      </main>
+      )}
+
+      <div className="pointer-events-none fixed inset-x-0 bottom-3 z-20 flex justify-center px-3">
+        <div className="pointer-events-auto w-full max-w-4xl space-y-2">
+          {player.step && <div className="max-h-[40vh] overflow-y-auto lg:hidden">{story}</div>}
+          <PlaybackControls player={player} />
+          <div className={`max-h-[50vh] overflow-y-auto px-4 py-3 ${floating}`}>
+            <FormulaEditor
+              compact
+              value={project.formula}
+              onChange={(formula) => update((p) => ({ ...p, formula }))}
+              analysis={analysisData}
+              analysisError={hasFormula ? analysis.error : null}
+              onSubmit={evaluate}
+              action={
+                <button
+                  type="button"
+                  onClick={evaluate}
+                  disabled={pending}
+                  title="Ctrl + Enter"
+                  className="h-[3.25rem] rounded-md bg-accent px-5 font-bold text-surface hover:opacity-90 disabled:opacity-50"
+                >
+                  {pending ? 'Evaluando…' : 'Evaluar'}
+                </button>
+              }
+            />
+            <ResultStrip
+              evaluation={evaluation}
+              error={evaluationError}
+              stale={stale}
+              unassigned={unassigned}
+              onDetails={() => setShowDetails(true)}
+              onEnvironment={() => setConfigTab('entorno')}
+            />
+          </div>
+        </div>
+      </div>
+
+      <Modal open={configTab !== null} onClose={() => setConfigTab(null)} title="Configuración">
+        <div role="tablist" aria-label="Secciones" className="mb-4 flex gap-1 border-b border-line">
+          {CONFIG_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={configTab === tab.id}
+              onClick={() => setConfigTab(tab.id)}
+              className={`relative -mb-px rounded-t-lg border border-b-0 px-4 py-2 text-sm font-bold ${
+                configTab === tab.id
+                  ? 'border-line bg-surface text-ink'
+                  : 'border-transparent text-muted hover:text-ink'
+              }`}
+            >
+              {tab.label}
+              <StatusDot status={status[tab.id]} />
+            </button>
+          ))}
+        </div>
+        <div role="tabpanel">
+          {configTab === 'lenguaje' && (
+            <LanguagePanel diagnostics={languageCheck.data?.diagnostics ?? []} />
+          )}
+          {configTab === 'interpretacion' && (
+            <InterpretationPanel
+              diagnostics={languageInvalid ? [] : (interpretationCheck.data?.diagnostics ?? [])}
+            />
+          )}
+          {configTab === 'entorno' && (
+            <EnvironmentPanel
+              freeVars={freeVars}
+              formulaState={!hasFormula ? 'empty' : analysisData?.syntax_tree ? 'ready' : 'invalid'}
+              diagnostics={environmentDiagnostics}
+            />
+          )}
+        </div>
+      </Modal>
+
+      <Modal
+        open={showDetails}
+        onClose={() => setShowDetails(false)}
+        title="Justificación"
+        placement="right"
+      >
+        <ResultPanel evaluation={evaluation} error={evaluationError} pending={pending} stale={stale} />
+      </Modal>
+    </div>
+  )
+}
+
+/** Resumen del resultado bajo la fórmula; el detalle se abre en el panel lateral. */
+function ResultStrip({
+  evaluation,
+  error,
+  stale,
+  unassigned,
+  onDetails,
+  onEnvironment,
+}: {
+  evaluation: Evaluation | null
+  error: string | null
+  stale: boolean
+  unassigned: readonly string[]
+  onDetails: () => void
+  onEnvironment: () => void
+}) {
+  const link = 'text-sm font-bold text-accent underline-offset-2 hover:underline'
+  if (error) return <p className="mt-2 text-sm text-false">{error}</p>
+  if (!evaluation) {
+    return unassigned.length > 0 ? (
+      <p className="mt-2 text-sm text-warn">
+        Falta asignar {unassigned.join(', ')} en el entorno.{' '}
+        <button type="button" className={link} onClick={onEnvironment}>
+          Asignar
+        </button>
+      </p>
+    ) : null
+  }
+  if (!evaluation.ok) {
+    const count = evaluation.diagnostics.filter((d) => d.severity === 'error').length
+    return (
+      <p className="mt-2 text-sm text-false">
+        No se puede evaluar: {count === 1 ? 'hay 1 error' : `hay ${count} errores`} en la entrada.{' '}
+        <button type="button" className={link} onClick={onDetails}>
+          Ver detalles
+        </button>
+      </p>
+    )
+  }
+  const value = evaluation.value === true
+  return (
+    <div className={`mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 ${stale ? 'opacity-60' : ''}`}>
+      <span
+        className={`rounded-md px-2.5 py-0.5 font-bold ${value ? 'bg-true-soft text-true' : 'bg-false-soft text-false'}`}
+      >
+        {value ? 'Verdadero' : 'Falso'}
+      </span>
+      <span className="formula min-w-0 truncate text-lg">
+        ℐ {value ? '⊨' : '⊭'} {evaluation.explanation?.formula}
+      </span>
+      <button type="button" className={`${link} ml-auto`} onClick={onDetails}>
+        Ver justificación
+      </button>
+      {stale && (
+        <p className="w-full text-sm text-warn">
+          Cambiaste la entrada después de evaluar: presiona Evaluar para actualizar.
+        </p>
+      )}
+    </div>
+  )
+}
+
+/** Lo que se ve en lugar de la escena cuando no hay nada que dibujar. */
+function EmptyUniverse({
+  reason,
+  size,
+  examples,
+  onLoadExample,
+  onConfigure,
+}: {
+  reason: 'empty' | 'too-big' | 'no-webgl'
+  size: number
+  examples: readonly Example[]
+  onLoadExample: (example: Example) => void
+  onConfigure: () => void
+}) {
+  return (
+    <div className="absolute inset-x-0 top-28 flex justify-center px-3">
+      <div className={`w-full max-w-xl px-6 py-5 ${floating}`}>
+        {reason === 'empty' ? (
+          <>
+            <p className="text-xl font-bold">Tu universo está vacío</p>
+            <p className="mt-1 text-muted">
+              Define un lenguaje y una interpretación con su dominio 𝒟, o empieza con un ejemplo de
+              las presentaciones del curso.
+            </p>
+            {examples.length > 0 && (
+              <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+                {examples.map((example) => (
+                  <li key={example.id}>
+                    <button
+                      type="button"
+                      onClick={() => onLoadExample(example)}
+                      className="h-full w-full rounded-lg border border-line bg-surface px-3 py-2 text-left hover:border-accent hover:bg-accent-soft"
+                    >
+                      <span className="block font-bold">{example.title}</span>
+                      <span className="formula block truncate text-muted">
+                        {example.project.formula}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        ) : reason === 'too-big' ? (
+          <p>
+            El dominio tiene {size} elementos; el universo 3D se dibuja hasta con{' '}
+            {MAX_DRAWN_ELEMENTS}. La evaluación funciona igual.
+          </p>
+        ) : (
+          <p>
+            Este navegador no permite gráficos 3D (WebGL), así que el universo no se muestra. La
+            evaluación funciona igual.
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={onConfigure}
+          className="mt-4 rounded-lg bg-accent px-4 py-2 font-bold text-surface hover:opacity-90"
+        >
+          {reason === 'empty' ? 'Configurar desde cero' : 'Abrir la configuración'}
+        </button>
+      </div>
     </div>
   )
 }
