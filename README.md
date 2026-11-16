@@ -112,7 +112,10 @@ Las letras se pueden decir por su nombre («equis», «i griega», «pe», «err
 variable y cuando va donde se espera un término y el conectivo ∧ cuando va entre fórmulas; los
 argumentos se leen según la aridad declarada, así que «R de x y y» es `R(x, y)`.
 
-Las mayúsculas no importan: «p» y «pe» se reconocen como el predicado `P`. Si dices un símbolo
+Las mayúsculas no importan: «p» y «pe» se reconocen como el predicado `P`. Para fijarlas se
+dice «mayúscula» o «minúscula» después de la letra: «pe minúscula de x» es `p(x)`, «equis
+mayúscula» es la constante `X` (sin la palabra, «x» es la variable). Si el lenguaje tiene dos
+símbolos que se dicen igual, como `p` y `P`, la aplicación pide distinguirlos en vez de adivinar. Si dices un símbolo
 que el lenguaje no tiene, el mensaje dice qué símbolos sí existen (y cuál se parece) y ofrece
 **declararlo** con el tipo y la aridad que se deducen de lo dictado: «q de x» propone el
 predicado `Q` de aridad 1. Si faltan varios, se proponen uno tras otro. Después hay que definir
