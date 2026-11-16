@@ -9,6 +9,7 @@ export type DiagnosticsOut = Schemas['DiagnosticsOut']
 export type FormulaAnalysis = Schemas['FormulaAnalysisOut']
 export type Evaluation = Schemas['EvaluationOut']
 export type ExplainNode = Schemas['ExplainNodeOut']
+export type SyntaxNode = Schemas['SyntaxNodeOut']
 export type Example = Schemas['ExampleOut']
 
 export class ApiError extends Error {}
