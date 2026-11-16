@@ -112,7 +112,13 @@ Las letras se pueden decir por su nombre («equis», «i griega», «pe», «err
 variable y cuando va donde se espera un término y el conectivo ∧ cuando va entre fórmulas; los
 argumentos se leen según la aridad declarada, así que «R de x y y» es `R(x, y)`.
 
-Comandos: «borra eso», «borra todo», «listo», «evaluar» y «cancelar».
+Las mayúsculas no importan: «p» y «pe» se reconocen como el predicado `P`. Si dices un símbolo
+que el lenguaje no tiene, el mensaje dice qué símbolos sí existen (y cuál se parece) y ofrece
+**declararlo** con el tipo y la aridad que se deducen de lo dictado: «q de x» propone el
+predicado `Q` de aridad 1. Si faltan varios, se proponen uno tras otro. Después hay que definir
+su interpretación.
+
+Comandos: «borra eso», «borra todo», «listo», «evaluar», «cancelar» y «declara».
 
 **Lectura en voz alta**: la aplicación puede leer lo que entendió antes de insertarlo, el
 veredicto (**Escuchar** junto al resultado) y cada paso de la animación (**Narrar en voz alta**;
