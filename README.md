@@ -84,6 +84,44 @@ El proyecto se guarda automáticamente en el navegador. El menú **Proyecto** pe
 o cargarlo como JSON y empezar uno nuevo, y **Ejemplos del curso** carga los ejemplos de las
 presentaciones.
 
+## Dictado por voz
+
+El botón **Dictar** (o Ctrl + M) permite decir la fórmula en español en lugar de escribirla.
+Funciona en Chrome y Edge, que traen reconocimiento de voz; en estos navegadores el
+reconocimiento suele necesitar conexión a internet. En otros navegadores el botón aparece
+deshabilitado.
+
+Mientras hablas, la transcripción se colorea según cómo se entendió cada palabra y debajo se
+arma la fórmula. Al terminar, **Insertar fórmula** (o decir «listo») la pone en el editor:
+reemplaza la fórmula, o solo el fragmento seleccionado si había uno. **Deshacer** la quita.
+
+| Se dice | Se escribe |
+|---------|-----------|
+| para todo, para cada | ∀ |
+| existe, hay un | ∃ |
+| no | ¬ |
+| no es cierto que … | ¬( … ) hasta el final |
+| y / o | ∧ / ∨ |
+| implica, entonces, si … entonces | → |
+| es igual a / es distinto de | = / ≠ |
+| P de x coma y | P(x, y) |
+| abre / cierra paréntesis | ( ) |
+| tal que, o una pausa después de la variable | el cuantificador alcanza hasta el final |
+
+Las letras se pueden decir por su nombre («equis», «i griega», «pe», «erre»). «y» es la
+variable y cuando va donde se espera un término y el conectivo ∧ cuando va entre fórmulas; los
+argumentos se leen según la aridad declarada, así que «R de x y y» es `R(x, y)`.
+
+Comandos: «borra eso», «borra todo», «listo», «evaluar» y «cancelar».
+
+**Lectura en voz alta**: la aplicación puede leer lo que entendió antes de insertarlo, el
+veredicto (**Escuchar** junto al resultado) y cada paso de la animación (**Narrar en voz alta**;
+la animación espera a que termine de hablar).
+
+La traducción la hace el backend con un parser de la misma gramática que el escrito. Su inverso,
+el verbalizador, convierte cada fórmula en la frase que la dicta; las pruebas verifican con
+fórmulas aleatorias que `traducir(verbalizar(φ)) = φ`.
+
 ## Vistas 3D
 
 El selector **Universo | Máquina** de la barra superior cambia la vista. La aplicación abre en
@@ -130,6 +168,8 @@ Documentación interactiva en `http://localhost:8000/docs` con el backend en mar
 | GET | `/api/examples` | Ejemplos de las presentaciones del curso |
 | POST | `/api/game/start` | Inicia el juego de Hintikka con el papel elegido por el usuario |
 | POST | `/api/game/move` | Hace una jugada del juego: la del usuario o la de la máquina |
+| POST | `/api/speech/translate` | Traduce una transcripción en español hablado a una fórmula |
+| POST | `/api/speech/command` | Reconoce comandos de voz («borra eso», «listo», …) |
 
 Si la entrada tiene errores, `/api/evaluate` responde `ok: false` con los diagnósticos y
 **sin** valor de verdad.
