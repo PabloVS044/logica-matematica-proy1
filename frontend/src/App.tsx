@@ -20,11 +20,14 @@ import {
   type View,
 } from './components/Universe'
 import { CONFIG_TABS, type ConfigStatus, type ConfigTab } from './lib/config'
+import { narrate } from './lib/narration'
 import { buildMachine, machineState } from './lib/machine'
 import { fromProjectIn, toInterpretation, toLanguage, toProjectIn } from './lib/project'
+import * as ops from './lib/projectOps'
 import { MAX_DRAWN_ELEMENTS, quantifierProgress } from './lib/universe'
 import { useExamples } from './lib/useExamples'
 import { useLiveRequest } from './lib/useLiveRequest'
+import { useSpeaker, type Speaker } from './lib/useSpeaker'
 import { useTheme } from './lib/useTheme'
 import {
   hasWebGL,
@@ -33,6 +36,7 @@ import {
   useUniverseLayers,
 } from './lib/useUniverse'
 import { useProject, useProjectStore } from './store/projectStore'
+import { useVoiceSettings } from './store/voiceStore'
 
 const hasErrors = (diagnostics: readonly Diagnostic[] | undefined) =>
   (diagnostics ?? []).some((d) => d.severity === 'error')
@@ -46,6 +50,8 @@ export default function App() {
   const examples = useExamples()
   const reducedMotion = useReducedMotion()
   const [webgl] = useState(hasWebGL)
+  const speaker = useSpeaker()
+  const voiceSettings = useVoiceSettings()
 
   // ---------------------------------------------------------------- validación en vivo
   const language = toLanguage(project)
@@ -76,14 +82,31 @@ export default function App() {
     setPending(true)
     setEvaluationError(null)
     try {
-      setEvaluation(await api.evaluate(request))
+      const result = await api.evaluate(request)
+      setEvaluation(result)
       setEvaluatedKey(currentKey)
+      // Con la narración activa el veredicto se dice al final de la animación.
+      if (result.ok && voiceSettings.readVerdict && !voiceSettings.narrate) {
+        void speaker.speak(result.spoken_summary ?? '')
+      }
     } catch (error) {
       setEvaluationError(error instanceof ApiError ? error.message : 'Error inesperado al evaluar.')
     } finally {
       setPending(false)
     }
   }
+
+  // Evaluar justo después de dictar: se espera a que el análisis de la fórmula nueva
+  // termine, porque de él salen las variables libres que se envían en el entorno.
+  const [evaluateRequested, setEvaluateRequested] = useState(false)
+  useEffect(() => {
+    if (evaluateRequested && !analysis.pending) {
+      setEvaluateRequested(false)
+      void evaluate()
+    }
+    // evaluate usa el proyecto de este render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [evaluateRequested, analysis.pending, currentKey])
 
   const stale = evaluation !== null && evaluatedKey !== currentKey
   const environmentDiagnostics =
@@ -127,7 +150,11 @@ export default function App() {
   // ---------------------------------------------------------------- universo
   const layers = useUniverseLayers(project)
   const root = evaluation?.ok && !stale ? (evaluation.explanation ?? null) : null
-  const player = usePlayer(root, evaluation?.summary ?? '', !reducedMotion)
+  const narrating = voiceSettings.narrate && speaker.supported
+  const player = usePlayer(root, evaluation?.summary ?? '', !reducedMotion, {
+    narrating,
+    speaking: speaker.speaking,
+  })
   const [picked, setPicked] = useState<string | null>(null)
   const selected = picked !== null && project.domain.includes(picked) ? picked : null
   const [spin, setSpin] = useState(true)
@@ -149,6 +176,21 @@ export default function App() {
     }),
     [layers],
   )
+  // Narración en voz alta: cada paso se lee al mostrarse; al final, el veredicto.
+  const spokenStep = player.step && narrating ? narrate(player.step, shapes, { voice: true }) : null
+  const spokenText = spokenStep ? [spokenStep.title, spokenStep.detail].filter(Boolean).join(' ') : ''
+  const lastStep = player.timeline ? player.index === player.timeline.steps.length - 1 : false
+  useEffect(() => {
+    if (!spokenText) return
+    const verdict = lastStep && voiceSettings.readVerdict ? ` ${evaluation?.spoken_summary ?? ''}` : ''
+    void speaker.speak(spokenText + verdict)
+    // solo cuando cambia el paso
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spokenText, player.index])
+  useEffect(() => {
+    if (!narrating) speaker.stop()
+  }, [narrating, speaker])
+
   const story = (
     <StoryCard player={player} progress={progress} formula={project.formula} shapes={shapes} />
   )
@@ -279,7 +321,17 @@ export default function App() {
       <div className="pointer-events-none fixed inset-x-0 bottom-3 z-20 flex justify-center px-3">
         <div className="pointer-events-auto w-full max-w-4xl space-y-2">
           {player.step && <div className="max-h-[40vh] overflow-y-auto lg:hidden">{story}</div>}
-          <PlaybackControls player={player} />
+          <PlaybackControls
+            player={player}
+            narration={
+              speaker.supported
+                ? {
+                    on: voiceSettings.narrate,
+                    toggle: () => voiceSettings.set({ narrate: !voiceSettings.narrate }),
+                  }
+                : undefined
+            }
+          />
           <div className={`max-h-[50vh] overflow-y-auto px-4 py-3 ${floating}`}>
             <FormulaEditor
               compact
@@ -288,6 +340,20 @@ export default function App() {
               analysis={analysisData}
               analysisError={hasFormula ? analysis.error : null}
               onSubmit={evaluate}
+              voice={{
+                language,
+                speaker,
+                onEvaluate: () => setEvaluateRequested(true),
+                onDeclare: (proposal) =>
+                  update((p) =>
+                    proposal.kind === 'constante'
+                      ? ops.addConstant(p, proposal.name)
+                      : ops.addSymbol(p, proposal.kind === 'predicado' ? 'predicates' : 'functions', {
+                          name: proposal.name,
+                          arity: proposal.arity,
+                        }),
+                  ),
+              }}
               action={
                 <button
                   type="button"
@@ -307,6 +373,7 @@ export default function App() {
               unassigned={unassigned}
               onDetails={() => setShowDetails(true)}
               onEnvironment={() => setConfigTab('entorno')}
+              speaker={speaker}
             />
           </div>
         </div>
@@ -371,7 +438,9 @@ function ResultStrip({
   unassigned,
   onDetails,
   onEnvironment,
+  speaker,
 }: {
+  speaker: Speaker
   evaluation: Evaluation | null
   error: string | null
   stale: boolean
@@ -413,7 +482,25 @@ function ResultStrip({
       <span className="formula min-w-0 truncate text-lg">
         ℐ {value ? '⊨' : '⊭'} {evaluation.explanation?.formula}
       </span>
-      <button type="button" className={`${link} ml-auto`} onClick={onDetails}>
+      {speaker.supported && (
+        <span className="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            className={link}
+            onClick={() =>
+              speaker.speaking ? speaker.stop() : void speaker.speak(evaluation.spoken_summary ?? '')
+            }
+          >
+            {speaker.speaking ? 'Callar' : 'Escuchar'}
+          </button>
+          <ReadVerdictToggle />
+        </span>
+      )}
+      <button
+        type="button"
+        className={`${link} ${speaker.supported ? '' : 'ml-auto'}`}
+        onClick={onDetails}
+      >
         Ver justificación
       </button>
       {stale && (
@@ -422,6 +509,22 @@ function ResultStrip({
         </p>
       )}
     </div>
+  )
+}
+
+/** Leer el veredicto en voz alta cada vez que se evalúa. */
+function ReadVerdictToggle() {
+  const readVerdict = useVoiceSettings((s) => s.readVerdict)
+  const set = useVoiceSettings((s) => s.set)
+  return (
+    <label className="flex items-center gap-1 text-xs text-muted">
+      <input
+        type="checkbox"
+        checked={readVerdict}
+        onChange={(e) => set({ readVerdict: e.target.checked })}
+      />
+      leer siempre
+    </label>
   )
 }
 

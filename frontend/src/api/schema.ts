@@ -89,6 +89,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/speech/translate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Speech Translate
+         * @description Traduce una transcripción en español hablado a una fórmula del lenguaje.
+         */
+        post: operations["speech_translate_api_speech_translate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/speech/command": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Speech Command
+         * @description Reconoce comandos de voz: "borra eso", "borra todo", "listo", "evaluar", "cancelar",
+         *     "declara".
+         */
+        post: operations["speech_command_api_speech_command_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/examples": {
         parameters: {
             query?: never;
@@ -178,6 +219,16 @@ export interface components {
             /** Value */
             value: string;
         };
+        /** CommandIn */
+        CommandIn: {
+            /** Utterance */
+            utterance: string;
+        };
+        /** CommandOut */
+        CommandOut: {
+            /** Command */
+            command: ("borrar" | "vaciar" | "aceptar" | "evaluar" | "cancelar" | "declarar") | null;
+        };
         /** DiagnosticOut */
         DiagnosticOut: {
             /** Code */
@@ -211,6 +262,8 @@ export interface components {
             value: boolean | null;
             /** Summary */
             summary: string | null;
+            /** Spoken Summary */
+            spoken_summary: string | null;
             explanation: components["schemas"]["ExplainNodeOut"] | null;
             /**
              * Truncated
@@ -268,6 +321,8 @@ export interface components {
             /** Computations */
             computations: string[];
             atom: components["schemas"]["AtomOut"] | null;
+            /** Spoken */
+            spoken: string;
             /**
              * Pruned
              * @default false
@@ -289,6 +344,8 @@ export interface components {
             /** Occurrences */
             occurrences: components["schemas"]["OccurrenceOut"][];
             syntax_tree: components["schemas"]["SyntaxNodeOut"] | null;
+            /** Spoken */
+            spoken: string | null;
         };
         /** FormulaIn */
         FormulaIn: {
@@ -483,12 +540,70 @@ export interface components {
                 [key: string]: string;
             };
         };
+        /** SpeechIn */
+        SpeechIn: {
+            language: components["schemas"]["LanguageIn"];
+            /** Transcript */
+            transcript: string;
+        };
+        /**
+         * SpeechMarkOut
+         * @description Cómo se interpretó una palabra de la transcripción.
+         */
+        SpeechMarkOut: {
+            /** Text */
+            text: string;
+            /** Start */
+            start: number;
+            /** End */
+            end: number;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "palabra clave" | "símbolo" | "variable" | "desconocida";
+            /** Meaning */
+            meaning: string;
+        };
+        /** SpeechTranslationOut */
+        SpeechTranslationOut: {
+            /** Ok */
+            ok: boolean;
+            /** Diagnostics */
+            diagnostics: components["schemas"]["DiagnosticOut"][];
+            /** Formula */
+            formula: string | null;
+            /** Parenthesized */
+            parenthesized: string | null;
+            /** Spoken */
+            spoken: string | null;
+            /** Marks */
+            marks: components["schemas"]["SpeechMarkOut"][];
+            proposal: components["schemas"]["SymbolProposalOut"] | null;
+        };
         /** SymbolDeclIn */
         SymbolDeclIn: {
             /** Name */
             name: string;
             /** Arity */
             arity: number;
+        };
+        /**
+         * SymbolProposalOut
+         * @description Símbolo sin declarar que, al declararlo, hace que lo dictado se traduzca completo.
+         */
+        SymbolProposalOut: {
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "constante" | "símbolo funcional" | "predicado";
+            /** Arity */
+            arity: number;
+            /** Formula */
+            formula: string | null;
         };
         /**
          * SyntaxNodeOut
@@ -674,6 +789,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EvaluationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    speech_translate_api_speech_translate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpeechIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpeechTranslationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    speech_command_api_speech_command_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommandIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandOut"];
                 };
             };
             /** @description Validation Error */

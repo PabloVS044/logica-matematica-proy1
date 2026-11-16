@@ -142,6 +142,7 @@ class FormulaAnalysisOut(OutModel):
     free_vars: list[str] = Field(default_factory=list)
     occurrences: list[OccurrenceOut] = Field(default_factory=list)
     syntax_tree: SyntaxNodeOut | None = None
+    spoken: str | None = None  # la fórmula en español, para leerla en voz alta
 
 
 class BindingOut(OutModel):
@@ -184,6 +185,7 @@ class ExplainNodeOut(OutModel):
     binding: BindingOut | None = None
     computations: list[str] = Field(default_factory=list)
     atom: AtomOut | None = None
+    spoken: str  # la subfórmula en español, para leerla en voz alta
     pruned: bool = False
     children: list["ExplainNodeOut"] = Field(default_factory=list)
 
@@ -195,6 +197,7 @@ class EvaluationOut(OutModel):
     diagnostics: list[DiagnosticOut]
     value: bool | None = None
     summary: str | None = None
+    spoken_summary: str | None = None  # veredicto en español corriente, para leer en voz alta
     explanation: ExplainNodeOut | None = None
     truncated: bool = False
     node_count: int = 0
@@ -207,6 +210,57 @@ class ExampleOut(OutModel):
     title: str
     description: str
     project: ProjectIn
+
+
+# ------------------------------------------------------------------ dictado por voz
+
+
+class SpeechIn(BaseModel):
+    language: LanguageIn
+    transcript: str
+
+
+class CommandIn(BaseModel):
+    utterance: str
+
+
+SpeechRole = Literal["palabra clave", "símbolo", "variable", "desconocida"]
+
+
+class SpeechMarkOut(OutModel):
+    """Cómo se interpretó una palabra de la transcripción."""
+
+    text: str
+    start: int
+    end: int
+    role: SpeechRole
+    meaning: str
+
+
+class SymbolProposalOut(OutModel):
+    """Símbolo sin declarar que, al declararlo, hace que lo dictado se traduzca completo."""
+
+    name: str
+    kind: Literal["constante", "símbolo funcional", "predicado"]
+    arity: int  # 0 para constantes
+    formula: str | None  # la fórmula que resultaría; None si falta declarar algo más
+
+
+class SpeechTranslationOut(OutModel):
+    ok: bool
+    diagnostics: list[DiagnosticOut]
+    formula: str | None = None
+    parenthesized: str | None = None
+    spoken: str | None = None  # cómo se lee la fórmula entendida
+    marks: list[SpeechMarkOut] = Field(default_factory=list)
+    proposal: SymbolProposalOut | None = None
+
+
+Command = Literal["borrar", "vaciar", "aceptar", "evaluar", "cancelar", "declarar"]
+
+
+class CommandOut(OutModel):
+    command: Command | None = None
 
 
 class HealthOut(OutModel):

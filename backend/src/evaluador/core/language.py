@@ -41,6 +41,10 @@ class Signature:
             return SymbolKind.PREDICATE
         return None
 
+    def all_names(self) -> list[str]:
+        """Todos los símbolos declarados, en orden estable."""
+        return [*sorted(self.constants), *self.functions, *self.predicates]
+
 
 @dataclass(frozen=True, slots=True)
 class SignatureResult:

@@ -11,6 +11,10 @@ export type Evaluation = Schemas['EvaluationOut']
 export type ExplainNode = Schemas['ExplainNodeOut']
 export type SyntaxNode = Schemas['SyntaxNodeOut']
 export type Example = Schemas['ExampleOut']
+export type SpeechTranslation = Schemas['SpeechTranslationOut']
+export type SpeechMark = Schemas['SpeechMarkOut']
+export type SymbolProposal = Schemas['SymbolProposalOut']
+export type VoiceCommand = Schemas['CommandOut']['command']
 
 export class ApiError extends Error {}
 
@@ -45,4 +49,8 @@ export const api = {
   ) => request<DiagnosticsOut>('/interpretation/validate', { language, interpretation }, signal),
   evaluate: (project: ProjectIn) => request<Evaluation>('/evaluate', project),
   examples: () => request<Example[]>('/examples'),
+  translateSpeech: (language: LanguageIn, transcript: string, signal?: AbortSignal) =>
+    request<SpeechTranslation>('/speech/translate', { language, transcript }, signal),
+  voiceCommand: (utterance: string) =>
+    request<Schemas['CommandOut']>('/speech/command', { utterance }),
 }

@@ -287,7 +287,14 @@ const MODES: { id: TimelineMode; label: string; title: string }[] = [
 ]
 
 /** Controles de la animación: una sola fila sobre el dock de la fórmula. */
-export function PlaybackControls({ player }: { player: Player }) {
+export function PlaybackControls({
+  player,
+  narration,
+}: {
+  player: Player
+  /** Narración en voz alta; sin esto (navegador sin voz) no se muestra el botón. */
+  narration?: { on: boolean; toggle: () => void }
+}) {
   const { timeline, index } = player
   if (!timeline) return null
   const last = timeline.steps.length - 1
@@ -349,6 +356,21 @@ export function PlaybackControls({ player }: { player: Player }) {
           </option>
         ))}
       </select>
+      {narration && (
+        <button
+          type="button"
+          onClick={narration.toggle}
+          aria-pressed={narration.on}
+          title="Leer en voz alta cada paso; la animación espera a que termine de hablar"
+          className={`h-9 rounded-lg border px-2.5 text-sm font-bold ${
+            narration.on
+              ? 'border-accent bg-accent text-surface'
+              : 'border-line bg-surface text-ink hover:bg-sunken'
+          }`}
+        >
+          {narration.on ? 'Narrando en voz alta' : 'Narrar en voz alta'}
+        </button>
+      )}
     </div>
   )
 }
