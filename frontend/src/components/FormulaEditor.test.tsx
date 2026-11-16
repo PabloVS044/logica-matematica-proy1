@@ -73,6 +73,7 @@ describe('FormulaEditor', () => {
       free_vars: [],
       occurrences: [],
       syntax_tree: null,
+      spoken: null,
     }
     const { container } = render(<Harness initial="P(x, ∧)" analysis={analysis} />)
     expect(container.querySelector('mark')?.textContent).toBe('∧')

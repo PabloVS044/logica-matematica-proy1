@@ -32,6 +32,7 @@ const explain = (id: string, overrides: Partial<ExplainNode>): ExplainNode => ({
   binding: null,
   computations: [],
   atom: null,
+  spoken: '',
   pruned: false,
   children: [],
   ...overrides,

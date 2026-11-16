@@ -18,6 +18,7 @@ const leaf = (value: boolean, binding: string, decisive: boolean): ExplainNode =
   justification: null,
   binding: { var: 'x', value: binding },
   computations: [],
+  spoken: 'R de x',
   atom: null,
   pruned: false,
   children: [],
@@ -27,6 +28,7 @@ const valid: Evaluation = {
   ok: true,
   diagnostics: [],
   value: true,
+  spoken_summary: 'Verdadero.',
   summary: 'Verdadero. ℐ ⊨_{l} ∃x R(x); testigo: x ↦ b. b ∈ Rᴵ.',
   explanation: {
     ...leaf(true, 'b', true),
