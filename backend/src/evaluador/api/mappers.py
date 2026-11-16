@@ -1,7 +1,7 @@
 """Conversión entre los esquemas de la API y los tipos del núcleo."""
 
 import itertools
-from collections.abc import Iterator
+from collections.abc import Collection, Iterator
 
 from evaluador.api.schemas import (
     AtomOut,
@@ -112,8 +112,8 @@ def syntax_tree_out(formula: Formula) -> SyntaxNodeOut:
     return _formula_node(formula, _ids())
 
 
-def explanation_out(root: ExplainNode) -> ExplainNodeOut:
-    return _explain_node(root, _ids())
+def explanation_out(root: ExplainNode, names: Collection[str] = ()) -> ExplainNodeOut:
+    return _explain_node(root, _ids(), names)
 
 
 def _ids() -> Iterator[str]:
@@ -182,7 +182,7 @@ def _formula_node(formula: Formula, ids: Iterator[str]) -> SyntaxNodeOut:
     )
 
 
-def _explain_node(node: ExplainNode, ids: Iterator[str]) -> ExplainNodeOut:
+def _explain_node(node: ExplainNode, ids: Iterator[str], names: Collection[str]) -> ExplainNodeOut:
     node_id = next(ids)
     return ExplainNodeOut(
         id=node_id,
@@ -199,9 +199,9 @@ def _explain_node(node: ExplainNode, ids: Iterator[str]) -> ExplainNodeOut:
         binding=BindingOut(var=node.binding[0], value=node.binding[1]) if node.binding else None,
         computations=list(node.computations),
         atom=AtomOut(symbol=node.atom[0], args=list(node.atom[1])) if node.atom else None,
-        spoken=verbalize(node.formula, spell=True),
+        spoken=verbalize(node.formula, spell=True, names=names),
         pruned=node.pruned,
-        children=[_explain_node(child, ids) for child in node.children],
+        children=[_explain_node(child, ids, names) for child in node.children],
     )
 
 

@@ -14,6 +14,8 @@ Con `spell=True` los nombres de una letra se dicen con su nombre en español
 ("pe", "equis", "i griega"), lo que conviene a un sintetizador de voz.
 """
 
+from collections.abc import Collection
+
 from evaluador.core.syntax_tree import (
     And,
     Const,
@@ -64,12 +66,14 @@ _IMPLIES, _OR, _AND, _UNARY, _ATOM = 1, 2, 3, 4, 5
 _OPEN, _CLOSE = "abre paréntesis", "cierra paréntesis"
 
 
-def verbalize(formula: Formula, *, spell: bool = False) -> str:
-    return " ".join(_Verbalizer(spell).formula(formula, tail=True))
+def verbalize(formula: Formula, *, spell: bool = False, names: Collection[str] = ()) -> str:
+    """`names`: símbolos declarados; si dos se dicen igual (p y P), se agrega «mayúscula»
+    o «minúscula» para distinguirlos."""
+    return " ".join(_Verbalizer(spell, names).formula(formula, tail=True))
 
 
-def verbalize_term(term: Term, *, spell: bool = False) -> str:
-    return " ".join(_Verbalizer(spell).term(term))
+def verbalize_term(term: Term, *, spell: bool = False, names: Collection[str] = ()) -> str:
+    return " ".join(_Verbalizer(spell, names).term(term))
 
 
 def spoken_name(name: str) -> str:
@@ -95,12 +99,31 @@ def _is_binary(formula: Formula) -> bool:
     return isinstance(formula, And | Or | Implies)
 
 
+def _needs_case(name: str, declared: Collection[str]) -> bool:
+    """Una letra cuyo caso no se oye: X (que se confundiría con la variable x) o p cuando
+    también existe P."""
+    if len(name) != 1 or not name.isalpha():
+        return False
+    if name in "uvwxyz":
+        return False  # una variable: sin la palabra, «x» siempre es la variable x
+    if name.isupper() and name.lower() in "uvwxyz":
+        return True
+    return any(other != name and other.lower() == name.lower() for other in declared)
+
+
 class _Verbalizer:
-    def __init__(self, spell: bool) -> None:
+    def __init__(self, spell: bool, names: Collection[str] = ()) -> None:
         self.spell = spell
+        self.declared = names
 
     def name(self, name: str) -> str:
         """Nombre de un símbolo o variable; x1 se dice "equis 1"."""
+        case = ""
+        if _needs_case(name, self.declared):
+            case = " mayúscula" if name.isupper() else " minúscula"
+        return self.spelled(name) + case
+
+    def spelled(self, name: str) -> str:
         if not self.spell:
             return name
         head, digits = name[0], name[1:]

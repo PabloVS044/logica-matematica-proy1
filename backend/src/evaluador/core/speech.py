@@ -184,6 +184,15 @@ class SpokenToken:
     span: Span  # posición en la transcripción
     word: Word | None  # significado como palabra clave, si lo tiene
     names: tuple[str, ...]  # nombres que podría representar ("pe" → "p")
+    exact: bool = False  # se dijo «mayúscula» o «minúscula»: el nombre es exactamente ese
+
+
+_CASE_WORDS = {
+    "mayuscula": str.upper,
+    "mayusculas": str.upper,
+    "minuscula": str.lower,
+    "minusculas": str.lower,
+}
 
 
 def tokenize(transcript: str) -> list[SpokenToken]:
@@ -209,11 +218,25 @@ def tokenize(transcript: str) -> list[SpokenToken]:
                 names = (original,) if letter is None else (original, letter)
             elif letter is not None:
                 names = (letter,)
-            if size > 1 and letter is not None and word is None:
-                tokens.append(SpokenToken(text, norm, span, None, names))
-            else:
-                tokens.append(SpokenToken(text, norm, span, word, names))
+            token = SpokenToken(
+                text, norm, span, word if size == 1 or letter is None else None, names
+            )
             i += size
+            # «pe mayúscula», «q minúscula»: fija el caso de una letra.
+            letter_name = names[-1] if names else ""
+            if i < len(raw) and raw[i][1] in _CASE_WORDS and len(letter_name) == 1:
+                forced = _CASE_WORDS[raw[i][1]](letter_name)
+                end = raw[i][2].end
+                token = SpokenToken(
+                    transcript[span.start : end],
+                    f"{norm} {raw[i][1]}",
+                    Span(span.start, end),
+                    None,
+                    (forced,),
+                    exact=True,
+                )
+                i += 1
+            tokens.append(token)
             break
     return tokens
 
@@ -384,7 +407,7 @@ def _proposed_name(token: SpokenToken, kind: SymbolKind) -> str | None:
     if not token.names:
         return None
     base = token.names[-1]
-    if len(base) == 1:
+    if len(base) == 1 and not token.exact:
         base = base.upper() if kind is SymbolKind.PREDICATE else base.lower()
     return base if is_identifier_name(base) else None
 
@@ -516,28 +539,45 @@ class _SpeechParser:
         token = self.peek()
         if token is None:
             return None
+        if token.exact:  # se dijo «mayúscula» o «minúscula»: solo ese nombre exacto
+            name = token.names[0]
+            return (name, declared[name], 1) if name in declared else None
         for candidate in token.names:
-            if candidate in declared:
-                return candidate, declared[candidate], 1
+            if is_variable_name(candidate.lower()):
+                continue  # "x" es la variable x, aunque exista un símbolo X
+            # p y P declarados a la vez: el reconocedor no distingue mayúsculas, se pregunta.
+            same = [name for name in declared if _simplify(name) == _simplify(candidate)]
+            if len(same) > 1:
+                self.ambiguous(token, sorted(same))
+            if same:
+                return same[0], declared[same[0]], 1
         simple = {_simplify(name): name for name in declared}
-        for candidate in token.names:
-            name = simple.get(_simplify(candidate))
-            if name is not None:
-                return name, declared[name], 1
         for size in range(3, 1, -1):
             group = [self.peek(k) for k in range(size)]
             if any(t is None or not t.names for t in group):
                 continue
             joined = "".join(_simplify(t.names[0]) for t in group if t is not None)
-            name = simple.get(joined)
-            if name is not None:
-                return name, declared[name], size
+            match = simple.get(joined)
+            if match is not None:
+                return match, declared[match], size
         return None
+
+    def ambiguous(self, token: SpokenToken, names: list[str]) -> NoReturn:
+        letter = names[0].lower()
+        spoken = LETTER_NAMES.get(letter, token.text) if len(letter) == 1 else token.text
+        self.fail(
+            "E-SPK-005",
+            f"Hay {len(names)} símbolos que se dicen «{token.text}»: {_spanish_list(names)}. "
+            f"Di «{spoken} mayúscula» o «{spoken} minúscula».",
+        )
 
     def variable(self) -> str | None:
         token = self.peek()
         if token is None:
             return None
+        if token.exact:  # las variables son minúsculas: «x mayúscula» no es variable
+            name = token.names[0]
+            return name if is_variable_name(name) else None
         for candidate in token.names:
             if is_variable_name(candidate.lower()):
                 return candidate.lower().translate(_SUBSCRIPTS)

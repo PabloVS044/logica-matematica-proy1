@@ -45,3 +45,16 @@ def test_spell_letter_names() -> None:
 
 def test_verbalize_term() -> None:
     assert verbalize_term(parse("f(g(x, c)) = c").left, spell=True) == "efe de ge de equis coma ce"  # type: ignore[attr-defined]
+
+
+def test_case_words_only_when_needed() -> None:
+    names = ["P", "p", "X", "c"]
+    spoken = verbalize(parse("P(x) ∧ p(X) ∧ R(c, x)"), spell=True, names=names)
+    assert spoken == (
+        "pe mayúscula de equis y pe minúscula de equis mayúscula y erre de ce coma equis"
+    )
+
+
+def test_uppercase_variable_letter_always_says_mayuscula() -> None:
+    # Sin la lista de símbolos, X igual se distingue de la variable x.
+    assert verbalize(parse("P(X)"), spell=True) == "pe de equis mayúscula"

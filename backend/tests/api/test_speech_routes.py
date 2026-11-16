@@ -67,3 +67,17 @@ def test_translate_proposes_missing_symbol(client: TestClient, project: dict[str
         "formula": "∀x P(x)",
     }
     assert data["diagnostics"][0]["message"].startswith("«pe» no es un símbolo del lenguaje")
+
+
+def test_translate_asks_for_case(client: TestClient) -> None:
+    language = {"predicates": [{"name": "P", "arity": 1}, {"name": "p", "arity": 1}]}
+    data = client.post(
+        "/api/speech/translate", json={"language": language, "transcript": "pe de x"}
+    ).json()
+    assert data["diagnostics"][0]["code"] == "E-SPK-005"
+    data = client.post(
+        "/api/speech/translate",
+        json={"language": language, "transcript": "pe minúscula de x"},
+    ).json()
+    assert data["formula"] == "p(x)"
+    assert data["spoken"] == "pe minúscula de equis"

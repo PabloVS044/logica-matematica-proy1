@@ -245,3 +245,62 @@ def test_unknown_message_suggests_similar_name() -> None:
 def test_unknown_message_without_declared_symbols() -> None:
     (diagnostic,) = translate("P de x", make_signature()).diagnostics
     assert "No hay predicados declarados." in diagnostic.message
+
+
+# ------------------------------------------------------------------ mayúsculas y minúsculas
+
+# p y P a la vez, y una constante X (que suena como la variable x).
+_CASES = make_signature(["c", "X"], {"f": 1, "F": 1}, {"P": 1, "p": 1, "R": 2})
+
+
+@pytest.mark.parametrize(
+    ("transcript", "formula"),
+    [
+        ("pe mayúscula de x", "P(x)"),
+        ("P minúscula de x", "p(x)"),
+        ("pe mayúsculas de x y pe minúscula de x", "P(x) ∧ p(x)"),
+        ("R de equis mayúscula coma x", "R(X, x)"),
+        ("R de X coma x", "R(x, x)"),  # sin la palabra, X es la variable x
+        ("x minúscula es igual a efe mayúscula de equis mayúscula", "x = F(X)"),
+        ("erre de c coma ce minúscula", "R(c, c)"),
+    ],
+)
+def test_case_words(transcript: str, formula: str) -> None:
+    assert translate(transcript, _CASES).text == formula
+
+
+def test_case_is_asked_when_two_symbols_sound_the_same() -> None:
+    result = translate("pe de x", _CASES)
+    (diagnostic,) = result.diagnostics
+    assert diagnostic.code == "E-SPK-005"
+    assert diagnostic.message == (
+        "Hay 2 símbolos que se dicen «pe»: P y p. Di «pe mayúscula» o «pe minúscula»."
+    )
+
+
+def test_case_is_not_needed_when_there_is_no_ambiguity() -> None:
+    assert translate("pe de x", _WITHOUT_Q).text == "P(x)"
+
+
+def test_case_words_fix_the_name_of_a_new_symbol() -> None:
+    proposal = translate("ka minúscula de x", _WITHOUT_Q).proposal
+    assert proposal == SymbolProposal("k", SymbolKind.PREDICATE, 1, "k(x)")
+    constant = translate("P de be mayúscula", _WITHOUT_Q).proposal
+    assert constant == SymbolProposal("B", SymbolKind.CONSTANT, 0, "P(B)")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "P(x) ∧ p(X)",
+        "∀x (p(f(x)) → P(F(X)))",
+        "R(X, x) ∨ ¬p(c)",
+        "∃y F(y) = f(X)",
+    ],
+)
+def test_round_trip_with_case_ambiguity(text: str) -> None:
+    formula = parse(text)
+    names = _CASES.all_names()
+    for spell in (False, True):
+        spoken = verbalize(formula, spell=spell, names=names)
+        assert translate(spoken, _CASES).formula == formula, spoken

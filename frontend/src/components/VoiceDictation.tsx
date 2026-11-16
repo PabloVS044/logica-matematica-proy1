@@ -34,6 +34,7 @@ const VOCABULARY: [string, string][] = [
   ['abre / cierra paréntesis', '(  )'],
   ['tal que, o una pausa tras la variable', 'alcance hasta el final'],
   ['equis, i griega, zeta, pe, erre …', 'x, y, z, P, R …'],
+  ['pe mayúscula / pe minúscula', 'P / p (si hay que distinguirlos)'],
 ]
 
 const COMMANDS: [string, string][] = [

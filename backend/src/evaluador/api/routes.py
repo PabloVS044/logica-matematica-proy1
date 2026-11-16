@@ -86,7 +86,9 @@ def analyze(request: FormulaIn) -> FormulaAnalysisOut:
         free_vars=analysis.free_vars,
         occurrences=[occurrence_out(o) for o in analysis.occurrences],
         syntax_tree=syntax_tree_out(analysis.formula) if analysis.formula else None,
-        spoken=verbalize(analysis.formula, spell=True) if analysis.formula else None,
+        spoken=verbalize(analysis.formula, spell=True, names=language.signature.all_names())
+        if analysis.formula
+        else None,
     )
 
 
@@ -104,6 +106,7 @@ def validate_interpretation(request: InterpretationRequest) -> DiagnosticsOut:
 @router.post("/evaluate")
 def evaluate_project(project: ProjectIn) -> EvaluationOut:
     constants, functions, predicates = to_declarations(project.language)
+    names = [*constants, *(d.name for d in functions), *(d.name for d in predicates)]
     result = evaluate(
         constants=constants,
         functions=functions,
@@ -128,8 +131,8 @@ def evaluate_project(project: ProjectIn) -> EvaluationOut:
         diagnostics=diagnostics,
         value=result.value,
         summary=explanation.summary,
-        spoken_summary=spoken_verdict(explanation.root),
-        explanation=explanation_out(explanation.root),
+        spoken_summary=spoken_verdict(explanation.root, names),
+        explanation=explanation_out(explanation.root, names),
         truncated=explanation.truncated,
         node_count=explanation.node_count,
         free_vars=list(result.free_vars),
@@ -170,7 +173,7 @@ def speech_translate(request: SpeechIn) -> SpeechTranslationOut:
         diagnostics=[],
         formula=result.text,
         parenthesized=format_formula(result.formula, full_parens=True),
-        spoken=verbalize(result.formula, spell=True),
+        spoken=verbalize(result.formula, spell=True, names=language.signature.all_names()),
         marks=marks,
     )
 
