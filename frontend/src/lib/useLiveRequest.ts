@@ -21,23 +21,27 @@ export function useLiveRequest<I, T>(
 ): LiveResult<T> {
   const key = JSON.stringify(input)
   const debouncedKey = useDebounced(key, delay)
-  const [state, setState] = useState<LiveResult<T>>({ data: null, error: null, pending: false })
+  // `answered` es la entrada a la que corresponden `data` y `error`: mientras no sea la
+  // actual, el resultado está pendiente aunque la petición nueva aún no haya salido.
+  const [state, setState] = useState<{ data: T | null; error: string | null; answered: string | null }>(
+    { data: null, error: null, answered: null },
+  )
 
   useEffect(() => {
-    if (!enabled) return
+    // Solo se pide la entrada ya asentada: si siguió cambiando, se espera a la próxima.
+    if (!enabled || debouncedKey !== key) return
     const controller = new AbortController()
-    setState((s) => ({ ...s, pending: true }))
     fetcher(JSON.parse(debouncedKey) as I, controller.signal)
-      .then((data) => setState({ data, error: null, pending: false }))
+      .then((data) => setState({ data, error: null, answered: debouncedKey }))
       .catch((error: unknown) => {
         if (controller.signal.aborted) return
         const message = error instanceof ApiError ? error.message : 'Error inesperado.'
-        setState({ data: null, error: message, pending: false })
+        setState({ data: null, error: message, answered: debouncedKey })
       })
     return () => controller.abort()
     // fetcher se define fuera del componente; solo importa el contenido de la entrada.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedKey, enabled])
+  }, [debouncedKey, key, enabled])
 
-  return { ...state, pending: state.pending || key !== debouncedKey }
+  return { data: state.data, error: state.error, pending: enabled && state.answered !== key }
 }
