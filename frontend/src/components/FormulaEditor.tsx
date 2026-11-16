@@ -1,14 +1,36 @@
 import {
+  useEffect,
   useLayoutEffect,
   useRef,
+  useState,
   type ChangeEvent,
   type KeyboardEvent,
   type ReactNode,
 } from 'react'
 
-import type { FormulaAnalysis } from '../api/client'
+import type { FormulaAnalysis, LanguageIn } from '../api/client'
 import { applyShortcut, insertAt } from '../lib/formulaInput'
+import { recognitionConstructor } from '../lib/speech'
+import type { Speaker } from '../lib/useSpeaker'
 import { DiagnosticList, Hint, Section } from './ui'
+import { VoiceDictation } from './VoiceDictation'
+
+/** Lo que necesita el dictado por voz; sin esto el editor no muestra el micrófono. */
+export interface VoiceInput {
+  language: LanguageIn
+  speaker: Speaker
+  /** Pide evaluar después de insertar la fórmula dictada (comando «evaluar»). */
+  onEvaluate: () => void
+}
+
+function MicIcon() {
+  return (
+    <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+    </svg>
+  )
+}
 
 const SYMBOLS: { symbol: string; label: string }[] = [
   { symbol: '¬', label: 'negación' },
@@ -50,7 +72,9 @@ export function FormulaEditor({
   onSubmit,
   compact = false,
   action,
+  voice,
 }: {
+  voice?: VoiceInput
   /** Versión para el dock inferior: sin título ni ayuda, y con `action` junto al campo. */
   compact?: boolean
   action?: ReactNode
@@ -62,6 +86,45 @@ export function FormulaEditor({
 }) {
   const textarea = useRef<HTMLTextAreaElement>(null)
   const pendingCursor = useRef<number | null>(null)
+  const [dictating, setDictating] = useState(false)
+  const [undo, setUndo] = useState<string | null>(null)
+  const [canDictate] = useState(() => recognitionConstructor() !== null)
+
+  // Ctrl + M abre o cierra el dictado desde cualquier parte de la página.
+  useEffect(() => {
+    if (!voice || !canDictate) return
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'm') {
+        event.preventDefault()
+        setDictating((open) => !open)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [voice, canDictate])
+
+  // La opción de deshacer lo dictado desaparece después de un rato.
+  useEffect(() => {
+    if (undo === null) return
+    const timer = setTimeout(() => setUndo(null), 10_000)
+    return () => clearTimeout(timer)
+  }, [undo])
+
+  /**
+   * Lo dictado es siempre una fórmula completa: reemplaza la fórmula, o solo el fragmento
+   * seleccionado si el usuario marcó uno (para dictar una subfórmula).
+   */
+  function insertDictated(formula: string) {
+    setUndo(value)
+    const element = textarea.current
+    const selected = element !== null && element.selectionStart !== element.selectionEnd
+    if (selected) {
+      insert(formula)
+    } else {
+      pendingCursor.current = formula.length
+      onChange(formula)
+    }
+  }
 
   // Restaura el cursor después de insertar un símbolo o aplicar un atajo.
   useLayoutEffect(() => {
@@ -134,7 +197,58 @@ export function FormulaEditor({
             {symbol}
           </button>
         ))}
+        {voice && (
+          <button
+            type="button"
+            onClick={() => setDictating((open) => !open)}
+            disabled={!canDictate}
+            aria-pressed={dictating}
+            title={
+              canDictate
+                ? 'Dictar la fórmula (Ctrl + M)'
+                : 'Este navegador no permite dictar. Usa Chrome o Edge.'
+            }
+            className={`ml-auto flex items-center gap-1.5 rounded-md border px-2.5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40 ${
+              compact ? 'h-8' : 'h-10'
+            } ${
+              dictating
+                ? 'border-accent bg-accent text-surface'
+                : 'border-line bg-surface text-ink hover:border-accent hover:bg-accent-soft'
+            }`}
+          >
+            <MicIcon />
+            Dictar
+          </button>
+        )}
       </div>
+
+      {voice && dictating && (
+        <VoiceDictation
+          language={voice.language}
+          speaker={voice.speaker}
+          onInsert={insertDictated}
+          onEvaluate={(formula) => {
+            insertDictated(formula)
+            voice.onEvaluate()
+          }}
+          onClose={() => setDictating(false)}
+        />
+      )}
+      {undo !== null && !dictating && (
+        <p className="mb-1.5 flex items-center gap-2 text-sm text-muted" role="status">
+          Se insertó la fórmula dictada.
+          <button
+            type="button"
+            className="font-bold text-accent underline-offset-2 hover:underline"
+            onClick={() => {
+              onChange(undo)
+              setUndo(null)
+            }}
+          >
+            Deshacer
+          </button>
+        </p>
+      )}
 
       <div className="flex items-start gap-2">
       <div className="relative min-w-0 flex-1 rounded-md border border-line bg-surface focus-within:border-accent">
