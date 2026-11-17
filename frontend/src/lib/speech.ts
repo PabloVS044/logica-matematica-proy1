@@ -62,15 +62,42 @@ export function synthesisSupported(): boolean {
   return typeof window !== 'undefined' && 'speechSynthesis' in window
 }
 
-/** Voz en español, prefiriendo variantes latinoamericanas y voces locales. */
-export function pickSpanishVoice(voices: readonly SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
-  const spanish = voices.filter((v) => v.lang.toLowerCase().startsWith('es'))
+export type VoiceQuality = 'natural' | 'buena' | 'robótica'
+
+/**
+ * Calidad aproximada de una voz según su nombre. Las voces neuronales ("Natural",
+ * "Online", "Neural") y las de Google suenan humanas; eSpeak, la voz local habitual en
+ * Linux, suena robótica.
+ */
+export function voiceQuality(voice: SpeechSynthesisVoice): VoiceQuality {
+  const name = voice.name.toLowerCase()
+  if (/espeak|e-speak|festival|pico/.test(name)) return 'robótica'
+  if (/natural|neural|online|premium|enhanced|mejorad/.test(name)) return 'natural'
+  if (/google|microsoft|apple|siri/.test(name)) return 'buena'
+  return voice.localService ? 'robótica' : 'buena'
+}
+
+const QUALITY_RANK: Record<VoiceQuality, number> = { natural: 0, buena: 1, robótica: 2 }
+const REGIONAL = ['es-mx', 'es-us', 'es-419', 'es-gt', 'es-co', 'es-ar']
+
+/** Voces en español de la más natural a la más robótica (y latinoamericanas primero). */
+export function spanishVoices(voices: readonly SpeechSynthesisVoice[]): SpeechSynthesisVoice[] {
   const rank = (v: SpeechSynthesisVoice) => {
-    const lang = v.lang.toLowerCase()
-    const regional = ['es-mx', 'es-us', 'es-419', 'es-gt', 'es-co', 'es-ar'].includes(lang) ? 0 : 1
-    return regional * 2 + (v.localService ? 0 : 1)
+    const regional = REGIONAL.includes(v.lang.toLowerCase().replace('_', '-')) ? 0 : 1
+    return QUALITY_RANK[voiceQuality(v)] * 10 + regional
   }
-  return [...spanish].sort((a, b) => rank(a) - rank(b))[0] ?? null
+  return voices
+    .filter((v) => v.lang.toLowerCase().startsWith('es'))
+    .sort((a, b) => rank(a) - rank(b))
+}
+
+/** La voz elegida por el usuario si existe; si no, la más natural en español. */
+export function pickSpanishVoice(
+  voices: readonly SpeechSynthesisVoice[],
+  preferred: string | null = null,
+): SpeechSynthesisVoice | null {
+  const spanish = spanishVoices(voices)
+  return spanish.find((v) => v.name === preferred) ?? spanish[0] ?? null
 }
 
 /**
