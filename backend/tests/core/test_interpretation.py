@@ -3,7 +3,7 @@ import itertools
 import pytest
 
 from evaluador.core.interpretation import (
-    MAX_DOMAIN_SIZE,
+    LARGE_DOMAIN_SIZE,
     FunctionRow,
     RawInterpretation,
     build_interpretation,
@@ -63,13 +63,27 @@ def test_domain_order_is_preserved(signature: Signature) -> None:
         (["a", "a"], "E-DOM-002"),
         (["a", "b c"], "E-DOM-002"),
         (["a", ""], "E-DOM-002"),
-        ([str(i) for i in range(MAX_DOMAIN_SIZE + 1)], "E-DOM-003"),
     ],
 )
 def test_domain_errors(domain: list[str], code: str, signature: Signature) -> None:
     result = build_interpretation(valid_raw(domain=domain), signature)
     assert result.interpretation is None
     assert code in [d.code for d in result.diagnostics]
+
+
+def test_large_domain_is_accepted_with_a_warning(signature: Signature) -> None:
+    # Más que el umbral de aviso: el dominio no tiene tamaño máximo.
+    domain = [str(i) for i in range(LARGE_DOMAIN_SIZE * 2)]
+    raw = valid_raw(
+        domain=domain,
+        constants={"c": "0"},
+        functions={"f": full_function(domain, 1, "1"), "g": full_function(domain, 2, "0")},
+        predicates={"P": [("0",)], "R": [("0", "1")]},
+    )
+    result = build_interpretation(raw, signature)
+    assert result.interpretation is not None
+    assert len(result.interpretation.domain) == LARGE_DOMAIN_SIZE * 2
+    assert [d.code for d in result.diagnostics] == ["W-DOM-001"]
 
 
 def test_numeric_domain_elements_are_valid() -> None:

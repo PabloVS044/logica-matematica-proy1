@@ -1,7 +1,9 @@
 import type { Diagnostic } from '../api/client'
 import * as ops from '../lib/projectOps'
 import { useProject, useUpdate } from '../store/projectStore'
-import { DiagnosticList, Hint, inputClass, Section } from './ui'
+import { DiagnosticList, Hint, Section } from './ui'
+import { TagMap } from './diagrams'
+import { SlotBoard } from './visual'
 
 export function EnvironmentPanel({
   freeVars,
@@ -15,6 +17,14 @@ export function EnvironmentPanel({
 }) {
   const project = useProject()
   const update = useUpdate()
+  const slots = freeVars.map((variable) => ({
+    id: variable,
+    label: variable,
+    caption: `l(${variable})`,
+    ariaLabel: `Valor de ${variable}`,
+    value: project.environment[variable] ?? '',
+    onChange: (value: string) => update((p) => ops.setEnvironmentValue(p, variable, value)),
+  }))
 
   return (
     <Section title="Entorno">
@@ -31,34 +41,14 @@ export function EnvironmentPanel({
       ) : (
         <>
           <Hint>
-            Asigna a cada variable libre un elemento de 𝒟: el entorno{' '}
-            <span className="formula">l : V → 𝒟</span>.
+            Cada variable libre es una cajita: pon dentro el elemento de 𝒟 que representa. Eso es
+            el entorno <span className="formula">l : V → 𝒟</span>.
           </Hint>
-          <div className="mt-2 flex flex-wrap gap-4">
-            {freeVars.map((variable) => {
-              const value = project.environment[variable] ?? ''
-              const invalid = value !== '' && !project.domain.includes(value)
-              return (
-                <label key={variable} className="formula flex items-center gap-1.5 text-lg">
-                  l({variable}) =
-                  <select
-                    aria-label={`Valor de ${variable}`}
-                    value={invalid ? '' : value}
-                    onChange={(e) =>
-                      update((p) => ops.setEnvironmentValue(p, variable, e.target.value))
-                    }
-                    className={`${inputClass} ${value === '' || invalid ? 'border-false' : ''}`}
-                  >
-                    <option value="">—</option>
-                    {project.domain.map((element) => (
-                      <option key={element} value={element}>
-                        {element}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )
-            })}
+          <div className="mt-3 grid items-start gap-3 md:grid-cols-[1fr_minmax(0,20rem)]">
+            <SlotBoard domain={project.domain} slots={slots} />
+            {project.domain.length <= 14 && (
+              <TagMap domain={project.domain} tags={slots} kind="variable" />
+            )}
           </div>
         </>
       )}

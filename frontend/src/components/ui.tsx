@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ButtonHTMLAttributes, type ReactNode } from 'react'
 
 import type { Diagnostic } from '../api/client'
+import { sfx } from '../lib/sound'
 
 export function Section({
   title,
@@ -107,6 +108,12 @@ export function Modal({
   useEffect(() => {
     close.current = onClose
   })
+
+  const wasOpen = useRef(open)
+  useEffect(() => {
+    if (wasOpen.current !== open) sfx.play(open ? 'modalAbrir' : 'modalCerrar')
+    wasOpen.current = open
+  }, [open])
 
   useEffect(() => {
     if (!open) return

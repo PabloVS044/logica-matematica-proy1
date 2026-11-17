@@ -5,7 +5,9 @@ import { downloadJson } from '../lib/download'
 import { fromProjectIn, toProjectIn } from '../lib/project'
 import { CONFIG_TABS, type ConfigStatus, type ConfigTab } from '../lib/config'
 import type { Theme } from '../lib/useTheme'
+import { sfx } from '../lib/sound'
 import { useProject, useProjectStore } from '../store/projectStore'
+import { useSoundSettings } from '../store/soundStore'
 import { floating } from './ui'
 
 const barButton =
@@ -91,6 +93,7 @@ export function Header({
             ))}
           </select>
           <ProjectMenu onMessage={onMessage} />
+          <SoundToggle />
           <button
             type="button"
             onClick={onToggleTheme}
@@ -103,6 +106,27 @@ export function Header({
         </div>
       </div>
     </header>
+  )
+}
+
+function SoundToggle() {
+  const enabled = useSoundSettings((s) => s.enabled)
+  const set = useSoundSettings((s) => s.set)
+  if (!sfx.supported) return null
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        set({ enabled: !enabled })
+        if (!enabled) setTimeout(() => sfx.play('seleccionar'), 30)
+      }}
+      aria-pressed={enabled}
+      aria-label={enabled ? 'Silenciar los efectos de sonido' : 'Activar los efectos de sonido'}
+      title={enabled ? 'Silenciar efectos' : 'Activar efectos'}
+      className={`${barButton} text-lg leading-none`}
+    >
+      {enabled ? '🔊' : '🔇'}
+    </button>
   )
 }
 

@@ -57,11 +57,22 @@ La escena 3D ocupa toda la pantalla. Arriba está la barra con la configuración
 abajo, la fórmula.
 
 1. **Lenguaje · Interpretación · Entorno** (barra superior): abren un modal con pestañas.
-   - **Lenguaje**: declara constantes, símbolos funcionales y predicados con su aridad.
-   - **Interpretación ℐ**: escribe los elementos del dominio 𝒟 y define cada símbolo: el valor
-     de cada constante, la tabla completa de cada función y las tuplas de cada relación
-     (casillas para predicados unarios, matriz para binarios, lista para aridad mayor).
-   - **Entorno**: si la fórmula tiene variables libres, asigna un elemento de 𝒟 a cada una.
+   - **Lenguaje**: tres columnas, una por familia de símbolos. Las constantes nombran
+     elementos, las funciones devuelven un elemento y los predicados responden V o F. Cada
+     símbolo se ve con sus lugares vacíos, por ejemplo `R(□, □)`, y la aridad se cambia con − / +.
+   - **Interpretación ℐ**: los elementos del dominio 𝒟 son fichas. Las constantes y cada
+     entrada de una función (`s(0) ↦ □`) son cajitas: se arrastra una ficha adentro, o se toca la
+     cajita y luego la ficha, y se pasa sola a la siguiente vacía. Un predicado unario es un
+     conjunto: se tocan o arrastran las fichas para meterlas o sacarlas. Uno binario es un
+     tablero donde cada casilla encendida es una flecha `a → b`, como en el universo. Para
+     aridad mayor, la tupla se arma con cajitas.
+   - **Entorno**: cada variable libre es una cajita donde se pone su elemento de 𝒟.
+
+   Con hasta 14 elementos, cada parte también se dibuja como en el pizarrón, y los dibujos se
+   pueden tocar: un mini universo con las constantes y variables colgando de su elemento, el
+   diagrama de Venn de cada predicado unario, el grafo con flechas de cada binario, el diagrama
+   de flechas de cada función unaria y la tabla de Cayley (un color por elemento) de cada
+   operación binaria. Cada símbolo del lenguaje lleva el ícono de su pieza en la máquina.
 
    Un punto rojo en el botón indica errores; uno naranja, algo pendiente (dominio vacío o una
    variable sin asignar).
@@ -163,6 +174,19 @@ dibuja hasta con 40 elementos.
 Con *prefers-reduced-motion* activado no hay animaciones: cada paso aparece en su estado final.
 La escena necesita WebGL; sin él, la evaluación y la justificación funcionan igual.
 
+### Sonido
+
+La evaluación también se oye. En la máquina, el paquete que baja, la compuerta que procesa y el
+sensor que consulta tienen cada uno su sonido. En el universo suenan la variable que se desliza
+y la flecha que existe o no existe. En las dos vistas, cada elemento que prueba un cuantificador
+suena como una cuenta (cristal si cumple, madera si no), un poco más aguda cada vez. El testigo,
+el contraejemplo y el veredicto final tienen sonidos propios. Mientras la máquina trabaja suenan
+de fondo sus engranajes.
+
+Los efectos están en `frontend/src/assets/sounds/` (WAV). Cerrar una ventana usa el sonido de
+abrirla tocado al revés, y elegir un elemento del universo se sintetiza con Web Audio. El botón 🔊/🔇 de la barra los silencia y la preferencia
+se guarda en el navegador. El navegador no deja sonar nada hasta el primer clic o tecla.
+
 ## API
 
 Documentación interactiva en `http://localhost:8000/docs` con el backend en marcha.
@@ -254,7 +278,8 @@ pnpm lint && pnpm typecheck && pnpm test
 
 La lógica de las vistas está separada del dibujo y tiene sus propias pruebas:
 `lib/universe.ts` (recorrido y marcador de cuantificadores), `lib/narration.ts` (narración) y
-`lib/machine.ts` (piezas de la máquina y su estado en cada paso).
+`lib/machine.ts` (piezas de la máquina y su estado en cada paso) y `lib/stepSounds.ts` (qué
+suena en cada paso).
 
 ## Producción
 
