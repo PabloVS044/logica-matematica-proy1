@@ -307,3 +307,10 @@ cd ../backend && fastapi run src/evaluador/api/main.py
 ```
 
 El backend sirve el build del frontend desde la misma URL.
+
+## Referencias
+
+El proyecto se desarrolló con apoyo de un asistente de programación (Anthropic, 2026).
+
+Anthropic. (2026). *Claude Code* (versión 2.1.326, modelo Claude Opus 5.5) [Asistente de
+programación basado en un modelo de lenguaje de gran tamaño]. https://www.anthropic.com/claude-code
