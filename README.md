@@ -223,6 +223,15 @@ la animación para saber qué flecha, anillo o balanza resaltar sin interpretar 
 
 ### Juego de Hintikka
 
+Después de evaluar, **Jugar** (junto a «Ver justificación») abre el juego semántico: eliges ser
+Verificador (quieres mostrar que la fórmula es verdadera) o Falsificador, y juegas contra la
+máquina, que usa la estrategia ganadora. En cada turno se eligen testigos, contraejemplos o una
+parte de la fórmula; una negación intercambia los papeles. Al final se explica quién gana y por
+qué, y si perdiste una estrategia ganadora se marca la jugada en que ocurrió. El Verificador
+tiene estrategia ganadora si y solo si ℐ ⊨ φ.
+
+Lo que sigue describe la API del juego.
+
 El servidor no guarda partidas: el cliente envía el estado completo en cada jugada.
 
 1. `/api/game/start` recibe `{project, user_role}` (`"verificador"` o `"falsificador"`) y
