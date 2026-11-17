@@ -12,7 +12,7 @@ import {
 } from './universe'
 
 /** Colores de los predicados; ninguno es verde ni rojo, que se reservan para V y F. */
-const PREDICATE_COLORS = ['#d4911c', '#1fa8c9', '#b45bd6', '#8d6e63', '#7c8aa5', '#c2185b']
+export const PREDICATE_COLORS = ['#d4911c', '#1fa8c9', '#b45bd6', '#8d6e63', '#7c8aa5', '#c2185b']
 
 // ------------------------------------------------------------------ entorno del navegador
 
