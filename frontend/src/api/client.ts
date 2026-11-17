@@ -14,6 +14,10 @@ export type Example = Schemas['ExampleOut']
 export type SpeechTranslation = Schemas['SpeechTranslationOut']
 export type SpeechMark = Schemas['SpeechMarkOut']
 export type SymbolProposal = Schemas['SymbolProposalOut']
+export type GameState = Schemas['GameStateOut']
+export type GameMove = Schemas['GameMoveOut']
+export type GameRole = Schemas['GameStartIn']['user_role']
+type GameStateIn = Schemas['GameStateIn']
 export type VoiceCommand = Schemas['CommandOut']['command']
 
 export class ApiError extends Error {}
@@ -51,6 +55,11 @@ export const api = {
   examples: () => request<Example[]>('/examples'),
   translateSpeech: (language: LanguageIn, transcript: string, signal?: AbortSignal) =>
     request<SpeechTranslation>('/speech/translate', { language, transcript }, signal),
+  gameStart: (project: ProjectIn, role: GameRole) =>
+    request<GameState>('/game/start', { project, user_role: role }),
+  /** Sin `move` juega la máquina (o, si la partida terminó, se obtiene el desenlace). */
+  gameMove: (state: GameStateIn, move: string | null) =>
+    request<GameMove>('/game/move', { state, move }),
   voiceCommand: (utterance: string) =>
     request<Schemas['CommandOut']>('/speech/command', { utterance }),
 }

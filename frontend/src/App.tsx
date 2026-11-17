@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, ApiError, type Diagnostic, type Evaluation, type Example } from './api/client'
 import { EnvironmentPanel } from './components/EnvironmentPanel'
 import { FormulaEditor } from './components/FormulaEditor'
+import { HintikkaGame } from './components/HintikkaGame'
 import { Header, StatusDot } from './components/Header'
 import { InterpretationPanel } from './components/InterpretationPanel'
 import { LanguagePanel } from './components/LanguagePanel'
@@ -127,6 +128,7 @@ export default function App() {
   // ---------------------------------------------------------------- ventanas
   const [configTab, setConfigTab] = useState<ConfigTab | null>(null)
   const [showDetails, setShowDetails] = useState(false)
+  const [showGame, setShowGame] = useState(false)
 
   const languageInvalid = languageCheck.data?.ok === false
   const unassigned = freeVars.filter((v) => !project.domain.includes(project.environment[v] ?? ''))
@@ -392,6 +394,7 @@ export default function App() {
               stale={stale}
               unassigned={unassigned}
               onDetails={() => setShowDetails(true)}
+              onPlay={() => setShowGame(true)}
               onEnvironment={() => setConfigTab('entorno')}
               speaker={speaker}
             />
@@ -438,6 +441,12 @@ export default function App() {
         </div>
       </Modal>
 
+      <Modal open={showGame} onClose={() => setShowGame(false)} title="Juego de Hintikka">
+        {evaluation?.ok && !stale && (
+          <HintikkaGame project={request} value={evaluation.value ?? null} />
+        )}
+      </Modal>
+
       <Modal
         open={showDetails}
         onClose={() => setShowDetails(false)}
@@ -457,9 +466,11 @@ function ResultStrip({
   stale,
   unassigned,
   onDetails,
+  onPlay,
   onEnvironment,
   speaker,
 }: {
+  onPlay: () => void
   speaker: Speaker
   evaluation: Evaluation | null
   error: string | null
@@ -522,6 +533,15 @@ function ResultStrip({
         onClick={onDetails}
       >
         Ver justificación
+      </button>
+      <button
+        type="button"
+        disabled={stale}
+        title={stale ? 'Evalúa de nuevo para jugar con la fórmula actual' : 'Juego de Hintikka contra la máquina'}
+        className="rounded-md bg-accent px-3 py-1 text-sm font-bold text-surface hover:opacity-90 disabled:opacity-50"
+        onClick={onPlay}
+      >
+        Jugar
       </button>
       {stale && (
         <p className="w-full text-sm text-warn">
