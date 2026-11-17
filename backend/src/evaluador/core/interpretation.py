@@ -14,7 +14,9 @@ from dataclasses import dataclass
 from evaluador.core.errors import Diagnostic, Location, Severity
 from evaluador.core.language import Signature
 
-MAX_DOMAIN_SIZE = 50
+# El dominio puede tener cualquier tamaño finito; a partir de aquí solo se avisa que la
+# evaluación (|𝒟|ᵏ casos con k cuantificadores anidados) puede tardar.
+LARGE_DOMAIN_SIZE = 50
 MAX_TABLE_ROWS = 10_000
 _MAX_REPORTED_MISSING = 10
 ELEMENT_PATTERN = re.compile(r"[A-Za-z0-9_]+")
@@ -95,15 +97,15 @@ def _validate_domain(elements: Sequence[str], out: list[Diagnostic]) -> tuple[El
     if not elements:
         out.append(_error("E-DOM-001", "El dominio 𝒟 no puede ser vacío.", "domain"))
         return None
-    if len(elements) > MAX_DOMAIN_SIZE:
+    if len(elements) > LARGE_DOMAIN_SIZE:
         out.append(
-            _error(
-                "E-DOM-003",
-                f"El dominio tiene {len(elements)} elementos; el máximo es {MAX_DOMAIN_SIZE}.",
+            _warning(
+                "W-DOM-001",
+                f"El dominio tiene {len(elements)} elementos: con varios cuantificadores "
+                "anidados la evaluación puede tardar.",
                 "domain",
             )
         )
-        return None
 
     ok = True
     seen: set[str] = set()
