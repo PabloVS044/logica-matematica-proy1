@@ -169,3 +169,19 @@ def test_round_trip_minimal_parens(formula: Formula) -> None:
 @given(formulas)
 def test_round_trip_full_parens(formula: Formula) -> None:
     assert parse(format_formula(formula, full_parens=True)) == formula
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        # Fórmulas tal como aparecen escritas en las presentaciones del curso.
+        ("∀x(H(x) → M(x))", "∀x (H(x) → M(x))"),
+        ("∀x(P(x) → ∃xQ(x))", "∀x (P(x) → ∃x Q(x))"),
+        ("(∀x(P(x) ∧ Q(x))) → (¬P(x) ∨ Q(y))", "(∀x (P(x) ∧ Q(x))) → ¬P(x) ∨ Q(y)"),
+        ("∃x∀yP(x, y)", "∃x ∀y P(x, y)"),
+        ("∀x∀y∀z(Q(x, y) ∧ Q(x, z) → y = z)", "∀x ∀y ∀z (Q(x, y) ∧ Q(x, z) → y = z)"),
+        ("B(x, y) → (∃z S(z, y))", "B(x, y) → ∃z S(z, y)"),
+    ],
+)
+def test_course_notation(text: str, expected: str) -> None:
+    assert format_formula(parse(text)) == expected

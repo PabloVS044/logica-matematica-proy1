@@ -78,6 +78,10 @@ abajo, la fórmula.
    variable sin asignar).
 2. **Fórmula** (abajo): usa la barra de símbolos o el teclado (`->` →, `&` ∧, `|` ∨, `~` ¬,
    `\A` ∀, `\E` ∃). Los errores se subrayan mientras escribes y se muestra cómo se interpretó.
+   Se acepta la notación de las presentaciones, con la variable pegada al predicado
+   (`∃xQ(x)`, `∃x∀yP(x, y)`). Precedencia: `¬ ∀ ∃` > `∧` > `∨` > `→` (asociativa a derecha);
+   un cuantificador solo alcanza la fórmula que le sigue, así que `∀x P(x) → Q(x)` se lee
+   `(∀x P(x)) → Q(x)` y se muestra así.
 3. **Evaluar** (o Ctrl + Enter): muestra Verdadero o Falso en la notación del curso. **Ver
    justificación** abre el árbol completo con testigos, contraejemplos o comprobación completa.
 4. **Animación**: al evaluar empieza a reproducirse. El panel derecho narra cada paso, resalta

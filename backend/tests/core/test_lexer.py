@@ -85,3 +85,28 @@ def test_name_predicates() -> None:
     assert not is_identifier_name("x")
     assert not is_identifier_name("forall")
     assert not is_identifier_name("_P")
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        # Como en las presentaciones: ∃xQ(x), ∃x∀yP(x, y)
+        ("∃xQ", [K.EXISTS, K.VAR, K.IDENT]),
+        ("∃x∀yP", [K.EXISTS, K.VAR, K.FORALL, K.VAR, K.IDENT]),
+        ("∀x1Even", [K.FORALL, K.VAR, K.IDENT]),
+        # fuera de un cuantificador no se separa nada
+        ("xQ", [K.IDENT]),
+        ("∀xy", [K.FORALL, K.IDENT]),
+    ],
+)
+def test_variable_glued_after_quantifier(text: str, expected: list[K]) -> None:
+    assert kinds(text) == expected
+
+
+def test_glued_spans() -> None:
+    tokens = tokenize("∃xQ")
+    assert [(t.text, t.span.start, t.span.end) for t in tokens[:3]] == [
+        ("∃", 0, 1),
+        ("x", 1, 2),
+        ("Q", 2, 3),
+    ]

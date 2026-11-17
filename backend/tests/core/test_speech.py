@@ -34,7 +34,7 @@ def written(transcript: str, signature: Signature) -> str | None:
         # cuantificadores y alcance
         ("para todo x tal que P de x implica Q de x coma x", "∀x (P(x) → Q(x, x))"),
         ("Para todo X, P de X implica P de i.", "∀x (P(x) → P(i))"),
-        ("para todo x P de x implica P de i", "∀x P(x) → P(i)"),
+        ("para todo x P de x implica P de i", "(∀x P(x)) → P(i)"),
         ("existe un y tal que R de i coma y", "∃y R(i, y)"),
         ("hay una x tal que P de x", "∃x P(x)"),
         ("para cada x existe y tal que R de x coma y", "∀x ∃y R(x, y)"),
@@ -58,7 +58,7 @@ def written(transcript: str, signature: Signature) -> str | None:
         # igualdad y funciones
         ("f de x es igual a zero", "f(x) = zero"),
         ("plus de x coma f de y igual a i", "plus(x, f(y)) = i"),
-        ("x es distinto de y", "¬x = y"),
+        ("x es distinto de y", "¬(x = y)"),
         ("P abre paréntesis f de x cierra paréntesis", "P(f(x))"),
         # puntuación del reconocedor
         ("Q(x, y) = ", None),
