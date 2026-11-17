@@ -44,3 +44,10 @@ def test_error_location_identifies_declaration() -> None:
     (diagnostic,) = result.diagnostics
     assert diagnostic.location.kind == "language"
     assert diagnostic.location.path == ("predicado", 1)
+
+
+def test_zero_arity_messages_explain_why() -> None:
+    result = build_signature([], [SymbolDecl("c", 0)], [SymbolDecl("P", 0)])
+    function, predicate = result.diagnostics
+    assert "declara 'c' como constante" in function.message
+    assert "sería siempre verdadero" in predicate.message

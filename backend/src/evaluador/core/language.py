@@ -85,12 +85,19 @@ def build_signature(
 
     def check_arity(decl: SymbolDecl, kind: SymbolKind, index: int) -> None:
         if isinstance(decl.arity, bool) or not isinstance(decl.arity, int) or decl.arity < 1:
-            diagnostics.append(
-                Diagnostic(
-                    "E-LNG-003",
-                    f"La aridad de '{decl.name}' debe ser un entero mayor o igual a 1.",
-                    Location("language", path=(kind.value, index)),
+            message = f"La aridad de '{decl.name}' debe ser un entero mayor o igual a 1."
+            if decl.arity == 0 and kind is SymbolKind.FUNCTION:
+                message += (
+                    f" Un símbolo funcional sin argumentos denota un elemento fijo de 𝒟: "
+                    f"declara '{decl.name}' como constante."
                 )
+            elif decl.arity == 0:
+                message += (
+                    " Un predicado sin argumentos tendría Pᴵ ⊆ 𝒟⁰ = {()}; como la relación "
+                    "no puede ser vacía, sería siempre verdadero."
+                )
+            diagnostics.append(
+                Diagnostic("E-LNG-003", message, Location("language", path=(kind.value, index)))
             )
 
     for i, name in enumerate(constants):
