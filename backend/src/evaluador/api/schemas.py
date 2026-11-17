@@ -273,6 +273,9 @@ class GameOptionOut(OutModel):
     label: str  # "P(x)", "¬P(x)" o "x ↦ a"
 
 
+GameKind = Literal["existe", "para todo", "o", "y", "implica", "atómica"]
+
+
 class GameStateOut(OutModel):
     project: ProjectIn
     start: int
@@ -281,6 +284,9 @@ class GameStateOut(OutModel):
     env_label: str
     user_role: GameRole
     formula: str
+    kind: GameKind  # qué tipo de fórmula se juega ahora (decide quién elige y qué)
+    body: str | None = None  # en ∃ y ∀: la fórmula sin el cuantificador
+    variable: str | None = None  # en ∃ y ∀: la variable cuantificada
     turn: GamePlayer | None = None
     options: list[GameOptionOut] = Field(default_factory=list)
 
