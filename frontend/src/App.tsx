@@ -25,8 +25,10 @@ import { buildMachine, machineState } from './lib/machine'
 import { fromProjectIn, toInterpretation, toLanguage, toProjectIn } from './lib/project'
 import * as ops from './lib/projectOps'
 import { MAX_DRAWN_ELEMENTS, quantifierProgress } from './lib/universe'
+import { sfx } from './lib/sound'
 import { useExamples } from './lib/useExamples'
 import { useLiveRequest } from './lib/useLiveRequest'
+import { useSoundCues } from './lib/useSoundCues'
 import { useSpeaker, type Speaker } from './lib/useSpeaker'
 import { useTheme } from './lib/useTheme'
 import {
@@ -85,11 +87,13 @@ export default function App() {
       const result = await api.evaluate(request)
       setEvaluation(result)
       setEvaluatedKey(currentKey)
+      if (!result.ok) sfx.play('noEvaluable')
       // Con la narración activa el veredicto se dice al final de la animación.
       if (result.ok && voiceSettings.readVerdict && !voiceSettings.narrate) {
         void speaker.speak(result.spoken_summary ?? '')
       }
     } catch (error) {
+      sfx.play('noEvaluable')
       setEvaluationError(error instanceof ApiError ? error.message : 'Error inesperado al evaluar.')
     } finally {
       setPending(false)
@@ -107,6 +111,12 @@ export default function App() {
     // evaluate usa el proyecto de este render
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [evaluateRequested, analysis.pending, currentKey])
+
+  // Un aviso discreto cuando la fórmula escrita deja de ser válida.
+  const formulaInvalid = hasFormula && hasErrors(analysisData?.diagnostics)
+  useEffect(() => {
+    if (formulaInvalid) sfx.play('errorSintaxis')
+  }, [formulaInvalid])
 
   const stale = evaluation !== null && evaluatedKey !== currentKey
   const environmentDiagnostics =
@@ -137,6 +147,7 @@ export default function App() {
 
   function loadExample(example: Example) {
     load(fromProjectIn(example.project))
+    sfx.play('ejemplo')
     setMessage(`Se cargó el ejemplo "${example.title}". ${example.description}`)
   }
 
@@ -203,6 +214,15 @@ export default function App() {
   const machineReady = machine !== null && webgl
   const shownView: View = machineReady ? view : 'universo'
   const showMachine = shownView === 'maquina' && machine !== null
+  useSoundCues(player, shownView, shapes.binary)
+  function changeView(next: View) {
+    if (next !== shownView) sfx.play('cambiarVista')
+    setView(next)
+  }
+  function select(element: string | null) {
+    if (element !== null) sfx.play('seleccionar')
+    setPicked(element)
+  }
   const machineNow =
     machine && player.timeline ? machineState(machine, player.timeline, player.index) : null
   // En pantallas anchas la escena queda entre la leyenda y la narración.
@@ -225,7 +245,7 @@ export default function App() {
           step={player.step}
           stepKey={player.index}
           selected={selected}
-          onSelect={setPicked}
+          onSelect={select}
           spin={spin}
           marks={marks}
           className={stageInset}
@@ -254,7 +274,7 @@ export default function App() {
         onLoadExample={loadExample}
         onOpenConfig={setConfigTab}
         status={status}
-        viewToggle={<ViewToggle view={shownView} onChange={setView} machineReady={machineReady} />}
+        viewToggle={<ViewToggle view={shownView} onChange={changeView} machineReady={machineReady} />}
       />
 
       {message && (

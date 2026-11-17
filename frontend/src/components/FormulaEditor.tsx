@@ -10,6 +10,7 @@ import {
 
 import type { FormulaAnalysis, LanguageIn, SymbolProposal } from '../api/client'
 import { applyShortcut, insertAt } from '../lib/formulaInput'
+import { sfx } from '../lib/sound'
 import { recognitionConstructor } from '../lib/speech'
 import type { Speaker } from '../lib/useSpeaker'
 import { DiagnosticList, Hint, Section } from './ui'
@@ -191,7 +192,10 @@ export function FormulaEditor({
             title={label}
             aria-label={`Insertar ${label}`}
             onMouseDown={(e) => e.preventDefault()} // conserva el cursor en el editor
-            onClick={() => insert(symbol)}
+            onClick={() => {
+              sfx.play('simbolo')
+              insert(symbol)
+            }}
             className={`formula rounded-md border border-line bg-surface px-2 text-ink hover:border-accent hover:bg-accent-soft ${
               compact ? 'h-8 min-w-8 text-lg' : 'h-10 min-w-10 text-xl'
             }`}

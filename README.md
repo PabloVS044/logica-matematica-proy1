@@ -163,6 +163,19 @@ dibuja hasta con 40 elementos.
 Con *prefers-reduced-motion* activado no hay animaciones: cada paso aparece en su estado final.
 La escena necesita WebGL; sin él, la evaluación y la justificación funcionan igual.
 
+### Sonido
+
+La evaluación también se oye. En la máquina, el paquete que baja, la compuerta que procesa y el
+sensor que consulta tienen cada uno su sonido. En el universo suenan la variable que se desliza
+y la flecha que existe o no existe. En las dos vistas, cada elemento que prueba un cuantificador
+suena como una cuenta (cristal si cumple, madera si no), un poco más aguda cada vez. El testigo,
+el contraejemplo y el veredicto final tienen sonidos propios. Mientras la máquina trabaja suenan
+de fondo sus engranajes.
+
+Los efectos están en `frontend/src/assets/sounds/` (WAV). Cerrar una ventana usa el sonido de
+abrirla tocado al revés, y elegir un elemento del universo se sintetiza con Web Audio. El botón 🔊/🔇 de la barra los silencia y la preferencia
+se guarda en el navegador. El navegador no deja sonar nada hasta el primer clic o tecla.
+
 ## API
 
 Documentación interactiva en `http://localhost:8000/docs` con el backend en marcha.
@@ -254,7 +267,8 @@ pnpm lint && pnpm typecheck && pnpm test
 
 La lógica de las vistas está separada del dibujo y tiene sus propias pruebas:
 `lib/universe.ts` (recorrido y marcador de cuantificadores), `lib/narration.ts` (narración) y
-`lib/machine.ts` (piezas de la máquina y su estado en cada paso).
+`lib/machine.ts` (piezas de la máquina y su estado en cada paso) y `lib/stepSounds.ts` (qué
+suena en cada paso).
 
 ## Producción
 
