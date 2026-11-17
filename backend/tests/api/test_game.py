@@ -125,3 +125,29 @@ def test_invalid_moves(
     state = start(client, project, role) | changes
     response = client.post("/api/game/move", json={"state": state, "move": choice})
     assert response.status_code == 422
+
+
+@pytest.mark.parametrize(
+    ("formula", "kind", "variable", "body"),
+    [
+        ("∃yQ(i, y)", "existe", "y", "Q(i, y)"),
+        ("∀x(R(x) → Q(i, x))", "para todo", "x", "R(x) → Q(i, x)"),
+        ("R(i) ∨ R(i)", "o", None, None),
+        ("R(i) ∧ R(i)", "y", None, None),
+        ("R(i) → R(i)", "implica", None, None),
+        ("¬R(i)", "atómica", None, None),
+    ],
+)
+def test_state_describes_the_kind_of_formula(
+    client: TestClient,
+    project: dict[str, Any],
+    formula: str,
+    kind: str,
+    variable: str | None,
+    body: str | None,
+) -> None:
+    project["formula"] = formula
+    state = client.post(
+        "/api/game/start", json={"project": project, "user_role": "verificador"}
+    ).json()
+    assert (state["kind"], state["variable"], state["body"]) == (kind, variable, body)

@@ -205,9 +205,25 @@ def _explain_node(node: ExplainNode, ids: Iterator[str], names: Collection[str])
     )
 
 
+_GAME_KIND = {
+    Exists: "existe",
+    ForAll: "para todo",
+    Or: "o",
+    And: "y",
+    Implies: "implica",
+    Pred: "atómica",
+    Eq: "atómica",
+}
+
+
 def game_state_out(state: GameState, project: ProjectIn, interp: Interpretation) -> GameStateOut:
     player = turn(state)
+    formula = state.formula
+    quantified = formula if isinstance(formula, Exists | ForAll) else None
     return GameStateOut(
+        kind=_GAME_KIND[type(formula)],  # type: ignore[arg-type]
+        body=format_formula(quantified.body) if quantified else None,
+        variable=quantified.var if quantified else None,
         project=project,
         start=state.formula.span.start,
         end=state.formula.span.end,

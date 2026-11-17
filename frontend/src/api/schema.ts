@@ -444,6 +444,15 @@ export interface components {
             user_role: "verificador" | "falsificador";
             /** Formula */
             formula: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "existe" | "para todo" | "o" | "y" | "implica" | "atómica";
+            /** Body */
+            body: string | null;
+            /** Variable */
+            variable: string | null;
             /** Turn */
             turn: ("usuario" | "máquina") | null;
             /** Options */

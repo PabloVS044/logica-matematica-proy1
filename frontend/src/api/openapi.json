@@ -1102,6 +1102,40 @@
             "type": "string",
             "title": "Formula"
           },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "existe",
+              "para todo",
+              "o",
+              "y",
+              "implica",
+              "atómica"
+            ],
+            "title": "Kind"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "variable": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variable"
+          },
           "turn": {
             "anyOf": [
               {
@@ -1134,6 +1168,9 @@
           "env_label",
           "user_role",
           "formula",
+          "kind",
+          "body",
+          "variable",
           "turn",
           "options"
         ],
