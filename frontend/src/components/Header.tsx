@@ -9,6 +9,7 @@ import { sfx } from '../lib/sound'
 import { useProject, useProjectStore } from '../store/projectStore'
 import { useSoundSettings } from '../store/soundStore'
 import { floating } from './ui'
+import { VoiceMenu } from './VoiceMenu'
 
 const barButton =
   'relative rounded-lg px-3 py-1.5 text-sm font-bold text-ink hover:bg-sunken focus-visible:bg-sunken'
@@ -93,6 +94,7 @@ export function Header({
             ))}
           </select>
           <ProjectMenu onMessage={onMessage} />
+          <VoiceMenu buttonClass={barButton} />
           <SoundToggle />
           <button
             type="button"

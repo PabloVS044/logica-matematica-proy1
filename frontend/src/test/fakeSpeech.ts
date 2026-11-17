@@ -38,8 +38,8 @@ export function installRecognition() {
   vi.stubGlobal('webkitSpeechRecognition', FakeRecognition)
 }
 
-/** Sintetizador falso: registra lo que se leyó y termina al instante. */
-export function installSynthesis() {
+/** Sintetizador falso: registra lo que se leyó (con su voz) y termina al instante. */
+export function installSynthesis(voices: Partial<SpeechSynthesisVoice>[] = []) {
   const spoken: string[] = []
   class Utterance {
     text: string
@@ -56,12 +56,16 @@ export function installSynthesis() {
   vi.stubGlobal('speechSynthesis', {
     speak: (u: Utterance) => {
       spoken.push(u.text)
+      lastVoice.current = (u.voice as { name?: string } | null)?.name ?? null
       queueMicrotask(() => u.onend?.())
     },
     cancel: vi.fn(),
-    getVoices: () => [],
+    getVoices: () => voices,
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
   })
   return spoken
 }
+
+/** Nombre de la voz usada en la última lectura del sintetizador falso. */
+export const lastVoice: { current: string | null } = { current: null }
