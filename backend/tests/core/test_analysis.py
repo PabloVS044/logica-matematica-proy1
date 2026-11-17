@@ -5,7 +5,8 @@ from evaluador.core.language import Signature
 def test_valid_formula(exercise4_signature: Signature) -> None:
     analysis = analyze_formula("B(x,y) -> exists z S(z,y)", exercise4_signature)
     assert analysis.ok
-    assert analysis.parenthesized == "B(x, y) → ∃z S(z, y)"
+    # Igual que el ejercicio 4f de las presentaciones de lenguajes de primer orden.
+    assert analysis.parenthesized == "B(x, y) → (∃z S(z, y))"
     assert analysis.free_vars == ["x", "y"]
     assert len(analysis.occurrences) == 4
 

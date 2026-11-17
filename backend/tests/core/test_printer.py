@@ -20,6 +20,13 @@ def test_format_term() -> None:
         ("∀x(P(x)->Q(x))", "∀x (P(x) → Q(x))", "∀x (P(x) → Q(x))"),
         ("~~P(x)", "¬¬P(x)", "¬¬P(x)"),
         ("forall x exists y x=y", "∀x ∃y x = y", "∀x ∃y x = y"),
+        # notación del curso: el alcance de un cuantificador operando va entre paréntesis
+        ("∀x P(x) → Q(x)", "(∀x P(x)) → Q(x)", "(∀x P(x)) → Q(x)"),
+        ("P(x) → ∃y Q(y)", "P(x) → ∃y Q(y)", "P(x) → (∃y Q(y))"),
+        ("¬∀x P(x) ∧ Q(x)", "(¬∀x P(x)) ∧ Q(x)", "(¬∀x P(x)) ∧ Q(x)"),
+        ("¬P(x) ∨ Q(y)", "¬P(x) ∨ Q(y)", "¬P(x) ∨ Q(y)"),
+        ("¬(x = y)", "¬(x = y)", "¬(x = y)"),
+        ("∀x ∃y P(x)", "∀x ∃y P(x)", "∀x ∃y P(x)"),
     ],
 )
 def test_format_formula(text: str, minimal: str, full: str) -> None:

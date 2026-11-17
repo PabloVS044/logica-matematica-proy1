@@ -4,6 +4,11 @@
   Cumple `parse(format_formula(φ)) == φ`.
 - `format_formula(φ, full_parens=True)`: cada subfórmula binaria entre paréntesis,
   para mostrar sin ambigüedad cómo se interpretó la entrada.
+
+Se sigue la notación de las presentaciones del curso: un cuantificador a la izquierda de un
+conectivo va entre paréntesis, `(∀x P(x)) → Q(x)`; en la forma totalmente parentizada
+también a la derecha, `B(x, y) → (∃z S(z, y))`. La negación de una igualdad se escribe
+`¬(x = y)`.
 """
 
 from evaluador.core.syntax_tree import (
@@ -62,6 +67,8 @@ class _Printer:
                 return f"{format_term(left)} = {format_term(right)}"
             case Pred(name, args):
                 return f"{name}({', '.join(format_term(arg) for arg in args)})"
+            case Not(Eq() as equation):
+                return f"¬({self.formula(equation)})"
             case Not(body):
                 return f"¬{self.operand(body, _UNARY)}"
             case ForAll(var, body):
@@ -82,11 +89,26 @@ class _Printer:
         # necesita paréntesis; en uno asociativo a derecha, el izquierdo.
         left_min = prec + 1 if right_assoc else prec
         right_min = prec if right_assoc else prec + 1
-        return f"{self.operand(left, left_min)} {op} {self.operand(right, right_min)}"
+        # Un cuantificador a la izquierda siempre lleva paréntesis (su alcance no llega al
+        # conectivo); a la derecha, solo en la forma totalmente parentizada.
+        return (
+            f"{self.operand(left, left_min, in_binary=True)} {op} "
+            f"{self.operand(right, right_min, in_binary=self.full_parens)}"
+        )
 
-    def operand(self, formula: Formula, min_prec: int) -> str:
+    def operand(self, formula: Formula, min_prec: int, *, in_binary: bool = False) -> str:
         text = self.formula(formula)
         needs_parens = _precedence(formula) < min_prec
         if self.full_parens and isinstance(formula, And | Or | Implies):
             needs_parens = True
+        # El alcance de un cuantificador dentro de un conectivo se marca con paréntesis.
+        if in_binary and _quantified(formula):
+            needs_parens = True
         return f"({text})" if needs_parens else text
+
+
+def _quantified(formula: Formula) -> bool:
+    """∀x φ, ∃x φ, o una negación de ellos (¬∀x φ)."""
+    while isinstance(formula, Not):
+        formula = formula.body
+    return isinstance(formula, ForAll | Exists)
