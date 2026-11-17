@@ -22,6 +22,9 @@ function state(overrides: Partial<GameState>): GameState {
     env_label: 'l',
     user_role: 'verificador',
     formula: '∃x P(x)',
+    kind: 'existe',
+    variable: 'x',
+    body: 'P(x)',
     turn: 'usuario',
     options: [
       { move: 'a', label: 'x ↦ a' },
@@ -39,6 +42,9 @@ const atom = (value: string, role: GameState['user_role'] = 'verificador') =>
     env_label: `l[x↦${value}]`,
     user_role: role,
     formula: 'P(x)',
+    kind: 'atómica',
+    variable: null,
+    body: null,
     turn: null,
     options: [],
   })
@@ -83,13 +89,20 @@ describe('juego de Hintikka', () => {
       move(atom('a'), { finished: true, winner: 'usuario', commentary: 'ℐ ⊨_{l[x↦a]} P(x): gana el verificador.' }),
     ])
     render(<HintikkaGame project={project} value={true} />)
-    await userEvent.click(screen.getByRole('button', { name: /^Verificador/ }))
+    await userEvent.click(screen.getByRole('button', { name: /^Yo digo que es VERDADERA/ }))
 
-    expect(await screen.findByText(/Elige un testigo: un valor de x/)).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'x ↦ a' }))
+    expect(await screen.findByText(/Demuéstralo: elige ese x/)).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Tu jugada' })).toHaveTextContent(
+      'Dices que existe un x que cumple «P(x)».',
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'x = a' }))
 
     expect(await screen.findByText('¡Ganaste!')).toBeInTheDocument()
-    expect(screen.getByText(/mantuviste hasta el final/)).toBeInTheDocument()
+    // El desenlace aparece en el recuadro final y en el historial.
+    expect(
+      screen.getAllByText(/se revisa «P\(x\)» con x = a en la interpretación y es VERDADERA/),
+    ).toHaveLength(2)
+    expect(screen.getByText(/elegiste bien en cada paso/)).toBeInTheDocument()
     expect(calls).toEqual([{ move: 'a' }, { move: null }])
   })
 
@@ -99,12 +112,12 @@ describe('juego de Hintikka', () => {
       move(atom('b'), { finished: true, winner: 'máquina', commentary: 'ℐ ⊭_{l[x↦b]} P(x): gana el falsificador.' }),
     ])
     render(<HintikkaGame project={project} value={true} />)
-    await userEvent.click(screen.getByRole('button', { name: /^Verificador/ }))
-    await userEvent.click(await screen.findByRole('button', { name: 'x ↦ b' }))
+    await userEvent.click(screen.getByRole('button', { name: /^Yo digo que es VERDADERA/ }))
+    await userEvent.click(await screen.findByRole('button', { name: 'x = b' }))
 
     expect(await screen.findByText('Ganó la máquina')).toBeInTheDocument()
-    expect(screen.getByText('Aquí perdiste tu estrategia ganadora.')).toBeInTheDocument()
-    expect(screen.getByText(/la perdiste en la jugada marcada/)).toBeInTheDocument()
+    expect(screen.getByText('Aquí perdiste: con otra opción habrías ganado.')).toBeInTheDocument()
+    expect(screen.getByText(/en la jugada marcada abajo elegiste mal/)).toBeInTheDocument()
   })
 
   it('la máquina juega sola en su turno', async () => {
@@ -121,29 +134,68 @@ describe('juego de Hintikka', () => {
       }),
     ])
     render(<HintikkaGame project={project} value={true} />)
-    await userEvent.click(screen.getByRole('button', { name: /^Falsificador/ }))
+    await userEvent.click(screen.getByRole('button', { name: /^Yo digo que es FALSA/ }))
 
-    expect(await screen.findByText(/La máquina está pensando/)).toBeInTheDocument()
+    expect(await screen.findByText(/Le toca a la máquina/)).toBeInTheDocument()
+    expect(screen.getByText(/Ella dice que existe un x que cumple «P\(x\)»/)).toBeInTheDocument()
     await waitFor(() => expect(screen.getByText('Ganó la máquina')).toBeInTheDocument(), {
       timeout: 3000,
     })
     expect(calls).toEqual([{ move: null }, { move: null }])
-    expect(screen.getByText(/el Verificador tenía estrategia ganadora/)).toBeInTheDocument()
+    expect(screen.getByText(/La máquina elige x = a/)).toBeInTheDocument()
+    expect(screen.getByText(/estabas en el bando equivocado/)).toBeInTheDocument()
   })
 
   it('avisa cuando una negación intercambia los papeles', async () => {
     mockGame(state({ user_role: 'falsificador', turn: 'máquina' }), [])
     render(<HintikkaGame project={{ ...project, formula: '¬∃xP(x)' }} value={false} />)
-    await userEvent.click(screen.getByRole('button', { name: /^Verificador/ }))
+    await userEvent.click(screen.getByRole('button', { name: /^Yo digo que es VERDADERA/ }))
     expect(
-      await screen.findByText(/empieza con ¬: se intercambian los papeles. Ahora eres el Falsificador/),
+      await screen.findByText(/La fórmula empieza con un «no» \(¬\).*cambiaste de bando. Ahora defiendes que «∃x P\(x\)» es FALSA/),
     ).toBeInTheDocument()
   })
 
   it('muestra las reglas y los dos papeles antes de empezar', () => {
     render(<HintikkaGame project={project} value={null} />)
-    expect(screen.getByText('¿Con qué papel quieres jugar?')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /^Verificador Quieres mostrar/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /^Falsificador Quieres mostrar/ })).toBeInTheDocument()
+    expect(screen.getByText(/Es un debate contra la máquina/)).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Yo digo que es VERDADERA Juegas como Verificador.' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Yo digo que es FALSA Juegas como Falsificador.' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Reglas: ¿quién elige en cada paso?')).toBeInTheDocument()
+  })
+})
+
+describe('guía de cada tipo de fórmula', () => {
+  it('en una implicación explica las dos salidas en palabras', async () => {
+    const implication = state({
+      formula: 'P(a) → P(b)',
+      kind: 'implica',
+      variable: null,
+      body: null,
+      options: [
+        { move: 'izquierda', label: '¬P(a)' },
+        { move: 'derecha', label: 'P(b)' },
+      ],
+    })
+    mockGame(implication, [])
+    render(<HintikkaGame project={project} value={null} />)
+    await userEvent.click(screen.getByRole('button', { name: /^Yo digo que es VERDADERA/ }))
+    expect(await screen.findByText(/es verdadero si la condición es falsa/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /La condición «P\(a\)» es falsa/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /La conclusión «P\(b\)» es verdadera/ })).toBeInTheDocument()
+  })
+
+  it('en un «para todo» pide un contraejemplo a quien dice falsa', async () => {
+    const forall = state({ formula: '∀x P(x)', kind: 'para todo', user_role: 'falsificador' })
+    mockGame(forall, [])
+    render(<HintikkaGame project={{ ...project, formula: '∀xP(x)' }} value={null} />)
+    await userEvent.click(screen.getByRole('button', { name: /^Yo digo que es FALSA/ }))
+    expect(await screen.findByText(/elige un x que NO cumpla/)).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Lo que defiendes' })).toHaveTextContent(
+      'Defiendes que «∀x P(x)» es FALSA.',
+    )
   })
 })
