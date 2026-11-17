@@ -23,8 +23,13 @@ def test_slides_08_example() -> None:
 
 
 def test_slides_08_example_a() -> None:
-    # La primera x está ligada por ∀x y la segunda por ∃x: la fórmula es cerrada.
-    assert is_sentence(parse("∀x P(x) → ∃x Q(x)"))
+    # ∀x(P(x) → ∃xQ(x)): la x de P la liga ∀x y la de Q, el ∃x más interno.
+    formula = parse("∀x(P(x) → ∃xQ(x))")
+    assert is_sentence(formula)
+    text = "∀x(P(x) → ∃xQ(x))"
+    outer, inner = occurrences(formula)
+    assert outer.binder is not None and text[outer.binder.start] == "∀"
+    assert inner.binder is not None and text[inner.binder.start] == "∃"
 
 
 def test_slides_08_example_b() -> None:

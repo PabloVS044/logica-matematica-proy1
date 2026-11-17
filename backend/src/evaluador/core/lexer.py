@@ -51,6 +51,8 @@ _SUBSCRIPTS = str.maketrans("₀₁₂₃₄₅₆₇₈₉", "0123456789")
 _WORD_CHAR = re.compile(r"[A-Za-z0-9_₀-₉]")
 VARIABLE_PATTERN = re.compile(r"[u-z]([0-9]+|[₀-₉]+)?")
 IDENTIFIER_PATTERN = re.compile(r"[A-Za-z][A-Za-z0-9_]*")
+# Variable pegada a un símbolo en mayúscula: "xQ", "y1P".
+_QUANTIFIED_GLUED = re.compile(r"([u-z](?:[0-9]+|[₀-₉]+)?)([A-Z][A-Za-z0-9_]*)")
 
 
 def is_variable_name(name: str) -> bool:
@@ -85,7 +87,20 @@ def tokenize(text: str) -> list[Token]:
             start = i
             while i < n and _WORD_CHAR.match(text[i]):
                 i += 1
-            tokens.append(_classify_word(text[start:i], Span(start, i)))
+            word = text[start:i]
+            # Notación de las presentaciones: "∃xQ(x)", "∀yP(x, y)". Tras un cuantificador,
+            # la variable puede ir pegada al predicado que sigue.
+            glued = _QUANTIFIED_GLUED.fullmatch(word)
+            after_quantifier = bool(tokens) and tokens[-1].kind in (
+                TokenKind.FORALL,
+                TokenKind.EXISTS,
+            )
+            if after_quantifier and glued and not is_variable_name(word):
+                cut = start + len(glued.group(1))
+                tokens.append(_classify_word(text[start:cut], Span(start, cut)))
+                tokens.append(_classify_word(text[cut:i], Span(cut, i)))
+                continue
+            tokens.append(_classify_word(word, Span(start, i)))
             continue
 
         symbol = _match_symbol(text, i)
