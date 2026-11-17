@@ -138,6 +138,11 @@ Comandos: «borra eso», «borra todo», «listo», «evaluar», «cancelar» y 
 veredicto (**Escuchar** junto al resultado) y cada paso de la animación (**Narrar en voz alta**;
 la animación espera a que termine de hablar).
 
+La voz se elige en **Voz** (barra superior), junto con la velocidad, y se puede probar ahí mismo.
+Por defecto se usa la más natural disponible: las voces «Natural» de Microsoft en Edge y las de
+Google en Chrome (estas necesitan internet). eSpeak, la voz local habitual en Linux, suena
+robótica y solo se usa si no hay otra.
+
 La traducción la hace el backend con un parser de la misma gramática que el escrito. Su inverso,
 el verbalizador, convierte cada fórmula en la frase que la dicta; las pruebas verifican con
 fórmulas aleatorias que `traducir(verbalizar(φ)) = φ`.

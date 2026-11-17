@@ -1,6 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { pickSpanishVoice, synthesisSupported, toSpeakable } from './speech'
+import { useVoiceSettings } from '../store/voiceStore'
+import { pickSpanishVoice, spanishVoices, synthesisSupported, toSpeakable } from './speech'
+
+/** Voces en español disponibles (el navegador las carga de forma asíncrona). */
+export function useVoices(): SpeechSynthesisVoice[] {
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
+  useEffect(() => {
+    if (!synthesisSupported()) return
+    const synth = window.speechSynthesis
+    const load = () => setVoices(spanishVoices(synth.getVoices()))
+    load()
+    synth.addEventListener?.('voiceschanged', load)
+    return () => synth.removeEventListener?.('voiceschanged', load)
+  }, [])
+  return voices
+}
 
 export interface Speaker {
   supported: boolean
@@ -10,24 +25,17 @@ export interface Speaker {
   stop: () => void
 }
 
-export function useSpeaker(rate = 1): Speaker {
+export function useSpeaker(): Speaker {
   const [supported] = useState(synthesisSupported)
   const [speaking, setSpeaking] = useState(false)
-  const voice = useRef<SpeechSynthesisVoice | null>(null)
+  const voiceName = useVoiceSettings((s) => s.voiceName)
+  const rate = useVoiceSettings((s) => s.rate)
   const current = useRef<SpeechSynthesisUtterance | null>(null)
 
   useEffect(() => {
     if (!supported) return
     const synth = window.speechSynthesis
-    const load = () => {
-      voice.current = pickSpanishVoice(synth.getVoices())
-    }
-    load()
-    synth.addEventListener?.('voiceschanged', load)
-    return () => {
-      synth.removeEventListener?.('voiceschanged', load)
-      synth.cancel()
-    }
+    return () => synth.cancel()
   }, [supported])
 
   const stop = useCallback(() => {
@@ -43,8 +51,10 @@ export function useSpeaker(rate = 1): Speaker {
         if (!supported || !text.trim()) return resolve()
         window.speechSynthesis.cancel()
         const utterance = new SpeechSynthesisUtterance(toSpeakable(text))
-        utterance.lang = voice.current?.lang ?? 'es-MX'
-        if (voice.current) utterance.voice = voice.current
+        // La voz se elige en cada lectura: la lista puede cargarse después del primer render.
+        const voice = pickSpanishVoice(window.speechSynthesis.getVoices(), voiceName)
+        utterance.lang = voice?.lang ?? 'es-MX'
+        if (voice) utterance.voice = voice
         utterance.rate = rate
         const finish = () => {
           if (current.current === utterance) {
@@ -59,7 +69,7 @@ export function useSpeaker(rate = 1): Speaker {
         setSpeaking(true)
         window.speechSynthesis.speak(utterance)
       }),
-    [supported, rate],
+    [supported, rate, voiceName],
   )
 
   return { supported, speaking, speak, stop }

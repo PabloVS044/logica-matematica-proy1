@@ -9,6 +9,10 @@ interface VoiceSettings {
   readVerdict: boolean
   /** Narrar en voz alta cada paso de la animación. */
   narrate: boolean
+  /** Nombre de la voz elegida; null = la más natural disponible. */
+  voiceName: string | null
+  /** Velocidad de lectura (1 = normal). */
+  rate: number
   set: (settings: Partial<Omit<VoiceSettings, 'set'>>) => void
 }
 
@@ -18,6 +22,8 @@ export const useVoiceSettings = create<VoiceSettings>()(
       readBack: true,
       readVerdict: false,
       narrate: false,
+      voiceName: null,
+      rate: 1,
       set: (settings) => set(settings),
     }),
     { name: 'evaluador-semantico:voz', version: 1 },
